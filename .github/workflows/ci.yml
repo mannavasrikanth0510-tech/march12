@@ -15,7 +15,6 @@ env:
   TF_VERSION: "1.8.5"
   # Set to "." because your current errors show "terraform/" folder does not exist
   WORKING_DIR: .
-  TF_VARS_FILE: terraform/terraform.tfvars
 
 jobs:
   terraform-ci:
@@ -67,4 +66,4 @@ jobs:
           working_directory: ${{ env.WORKING_DIR }}
 
       - name: Terraform Plan
-        run: terraform plan -var-file="${{ env.TF_VARS_FILE }}" -out=plan.tfplan
+        run: terraform plan
