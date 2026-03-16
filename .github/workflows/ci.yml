@@ -66,4 +66,8 @@ jobs:
           working_directory: ${{ env.WORKING_DIR }}
 
       - name: Terraform Plan
-        run: terraform plan
+       run: |
+             terraform plan \
+                -var="bucket_name=${{ secrets.BUCKET_NAME }}" \
+               -var="environment=dev" \
+               -out=plan.tfplan
