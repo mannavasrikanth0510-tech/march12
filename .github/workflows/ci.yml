@@ -13,7 +13,6 @@ env:
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
   TF_VERSION: "1.8.5"
-  # Set to "." because your current errors show "terraform/" folder does not exist
   WORKING_DIR: .
 
 jobs:
@@ -26,7 +25,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Optional debug (keep for now, remove later)
       - name: Debug current directory
         run: |
           echo "WORKING_DIR=${{ env.WORKING_DIR }}"
@@ -65,8 +63,8 @@ jobs:
           working_directory: ${{ env.WORKING_DIR }}
 
       - name: Terraform Plan
-       run: |
-             terraform plan \
-                -var="bucket_name=${{ secrets.BUCKET_NAME }}" \
-               -var="environment=dev" \
-               -out=plan.tfplan
+        run: |
+          terraform plan \
+            -var="bucket_name=${{ secrets.BUCKET_NAME }}" \
+            -var="environment=dev" \
+            -out=plan.tfplan
