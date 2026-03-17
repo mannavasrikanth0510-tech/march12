@@ -2,11 +2,18 @@ provider "aws" {
   region = var.aws_region
 }
 
+data "aws_caller_identity" "current" {}
+
+locals {
+  primary_bucket_name = "${var.bucket_name}-${data.aws_caller_identity.current.account_id}-${var.environment}"
+  log_bucket_name     = "${var.bucket_name}-${data.aws_caller_identity.current.account_id}-${var.environment}-logs"
+}
+
 resource "aws_s3_bucket" "my_bucket" {
-  bucket = var.bucket_name
+  bucket = local.primary_bucket_name
 
   tags = {
-    Name        = var.bucket_name
+    Name        = local.primary_bucket_name
     Environment = var.environment
   }
 }
@@ -47,10 +54,10 @@ resource "aws_s3_bucket_versioning" "my_bucket_versioning" {
 
 #tfsec:ignore:aws-s3-enable-bucket-logging Logging bucket is dedicated target for access logs.
 resource "aws_s3_bucket" "log_bucket" {
-  bucket = "${var.bucket_name}-logs"
+  bucket = local.log_bucket_name
 
   tags = {
-    Name        = "${var.bucket_name}-logs"
+    Name        = local.log_bucket_name
     Environment = var.environment
   }
 }
