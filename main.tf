@@ -9,3 +9,61 @@ resource "aws_s3_bucket" "my_bucket" {
     Environment = var.environment
   }
 }
+
+resource "aws_kms_key" "s3_kms" {
+  description             = "KMS key for S3 bucket encryption"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "my_bucket_enc" {
+  bucket = aws_s3_bucket.my_bucket.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.s3_kms.arn
+    }
+    bucket_key_enabled = true
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "my_bucket_pab" {
+  bucket = aws_s3_bucket.my_bucket.id
+
+  block_public_acls       = true
+  ignore_public_acls      = true
+  block_public_policy     = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_versioning" "my_bucket_versioning" {
+  bucket = aws_s3_bucket.my_bucket.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket" "log_bucket" {
+  bucket = "${var.bucket_name}-logs"
+
+  tags = {
+    Name        = "${var.bucket_name}-logs"
+    Environment = var.environment
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "log_bucket_pab" {
+  bucket = aws_s3_bucket.log_bucket.id
+
+  block_public_acls       = true
+  ignore_public_acls      = true
+  block_public_policy     = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_logging" "my_bucket_logging" {
+  bucket        = aws_s3_bucket.my_bucket.id
+  target_bucket = aws_s3_bucket.log_bucket.id
+  target_prefix = "access-logs/"
+}
