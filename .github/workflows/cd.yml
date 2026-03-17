@@ -27,6 +27,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Debug files
+        run: |
+          echo "WORKING_DIR=${{ env.WORKING_DIR }}"
+          pwd
+          ls -la
+          find . -maxdepth 2 -name "*.tf"
+
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
