@@ -3,7 +3,10 @@ name: Terraform CD (Deploy on main)
 on:
   push:
     branches: [main]
-  workflow_dispatch:
+    paths:
+      - "infra/storage/**"
+      - ".github/workflows/s3-cd.yml"
+
 
 permissions:
   contents: read
