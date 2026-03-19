@@ -3,13 +3,16 @@ name: Terraform CI (PR to main)
 on:
   pull_request:
     branches: [main]
+     paths:
+      - "infra/storage/**"
+      - ".github/workflows/s3-ci.yml"
 
 permissions:
   contents: read
   id-token: write
   security-events: write
-
-env:
+  
+  env:
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
   TF_VERSION: "1.8.5"
