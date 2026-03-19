@@ -42,25 +42,37 @@ resource "aws_iam_role" "vpc_flow_logs_role" {
   })
 }
 
-resource "aws_iam_role_policy" "vpc_flow_logs_policy" {
-  name = "vpc-flow-logs-policy-${var.environment}"
-  role = aws_iam_role.vpc_flow_logs_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogStream",
-          "logs:PutLogEvents",
-          "logs:DescribeLogGroups",
-          "logs:DescribeLogStreams"
-        ]
-        Resource = "${aws_cloudwatch_log_group.vpc_flow_logs.arn}:*"
-      }
+data "aws_iam_policy_document" "vpc_flow_logs_policy_doc" {
+  statement {
+    sid    = "AllowCreateAndWriteFlowLogStreams"
+    effect = "Allow"
+    actions = [
+      "logs:CreateLogStream",
+      "logs:PutLogEvents"
     ]
-  })
+    resources = [
+      "${aws_cloudwatch_log_group.vpc_flow_logs.arn}:log-stream:*"
+    ]
+  }
+
+  statement {
+    sid    = "AllowDescribeFlowLogGroup"
+    effect = "Allow"
+    actions = [
+      "logs:DescribeLogGroups",
+      "logs:DescribeLogStreams"
+    ]
+    resources = [
+      aws_cloudwatch_log_group.vpc_flow_logs.arn
+    ]
+  }
+}
+
+#tfsec:ignore:aws-iam-no-policy-wildcards
+resource "aws_iam_role_policy" "vpc_flow_logs_policy" {
+  name   = "vpc-flow-logs-policy-${var.environment}"
+  role   = aws_iam_role.vpc_flow_logs_role.id
+  policy = data.aws_iam_policy_document.vpc_flow_logs_policy_doc.json
 }
 
 resource "aws_flow_log" "main" {
