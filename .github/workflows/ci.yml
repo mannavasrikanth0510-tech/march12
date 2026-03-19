@@ -3,9 +3,6 @@ name: Terraform CI (PR to main)
 on:
   pull_request:
     branches: [main]
-     paths:
-      - "infra/storage/**"
-      - ".github/workflows/s3-ci.yml"
 
 permissions:
   contents: read
