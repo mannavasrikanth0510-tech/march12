@@ -1,6 +1,23 @@
+resource "aws_kms_key" "flow_logs" {
+  description             = "CMK for VPC Flow Logs (${var.environment})"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  tags = {
+    Name        = "kms-flow-logs-${var.environment}"
+    Environment = var.environment
+  }
+}
+
+resource "aws_kms_alias" "flow_logs" {
+  name          = "alias/vpc-flow-logs-${var.environment}"
+  target_key_id = aws_kms_key.flow_logs.key_id
+}
+
 resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
   name              = "/aws/vpc/flow-logs/${var.environment}"
   retention_in_days = 30
+  kms_key_id        = aws_kms_key.flow_logs.arn
 
   tags = {
     Name        = "vpc-flow-logs-${var.environment}"
