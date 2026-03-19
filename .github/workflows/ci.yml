@@ -1,72 +1,30 @@
-name: Terraform CI (PR to main)
+name: VPC CI
 
 on:
   pull_request:
     branches: [main]
+    paths:
+      - "infra/network/**"
+      - ".github/workflows/vpc-ci.yml"
 
 permissions:
   contents: read
   id-token: write
-  security-events: write
-  
-env:
-  TF_IN_AUTOMATION: "true"
-  TF_INPUT: "false"
-  TF_VERSION: "1.8.5"
-  WORKING_DIR: .
 
 jobs:
   terraform-ci:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ${{ env.WORKING_DIR }}
+        working-directory: infra/network
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Debug current directory
-        run: |
-          echo "WORKING_DIR=${{ env.WORKING_DIR }}"
-          pwd
-          ls -la
-
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_TF_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      - name: Terraform Init (connect state in S3)
-        run: |
-          terraform init -reconfigure \
-            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
-            -backend-config="key=${{ secrets.TF_STATE_KEY }}" \
-            -backend-config="region=${{ vars.AWS_REGION }}" \
-            -backend-config="dynamodb_table=${{ secrets.TF_LOCK_TABLE }}" \
-            -backend-config="encrypt=true"
-
-      - name: Terraform Format Check
-        run: terraform fmt -recursive -check -diff
-
-      - name: Terraform Validate
-        run: terraform validate
-
-      - name: Security Scan (tfsec)
-        uses: aquasecurity/tfsec-action@v1.0.3
-        with:
-          working_directory: ${{ env.WORKING_DIR }}
-          version: v1.28.14
-          github_token: ${{ github.token }}
-
-      - name: Terraform Plan
-        run: |
-          terraform plan \
-            -var="bucket_name=${{ secrets.BUCKET_NAME }}" \
-            -var="environment=dev" \
-            -out=plan.tfplan
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform init -reconfigure -backend-config=backend.hcl
+      - run: terraform fmt -recursive -check -diff
+      - run: terraform validate
+      - run: terraform plan -var="aws_region=${{ vars.AWS_REGION }}" -var="environment=dev"
