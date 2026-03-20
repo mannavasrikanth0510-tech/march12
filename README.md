@@ -1,2 +1,2 @@
-file for readme.....
+file for readme
 
