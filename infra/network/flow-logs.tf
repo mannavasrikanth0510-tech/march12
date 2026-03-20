@@ -3,6 +3,21 @@ resource "aws_kms_key" "flow_logs" {
   deletion_window_in_days = 7
   enable_key_rotation     = true
 
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "Enable IAM User Permissions"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      }
+    ]
+  })
+
   tags = {
     Name        = "kms-flow-logs-${var.environment}"
     Environment = var.environment
@@ -68,7 +83,6 @@ data "aws_iam_policy_document" "vpc_flow_logs_policy_doc" {
   }
 }
 
-#tfsec:ignore:aws-iam-no-policy-wildcards
 resource "aws_iam_role_policy" "vpc_flow_logs_policy" {
   name   = "vpc-flow-logs-policy-${var.environment}"
   role   = aws_iam_role.vpc_flow_logs_role.id
