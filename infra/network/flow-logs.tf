@@ -1,7 +1,3 @@
-# Get current AWS account ID
-data "aws_caller_identity" "current" {}
-
-# Create KMS Key for encryption
 resource "aws_kms_key" "flow_logs" {
   description             = "CMK for VPC Flow Logs (${var.environment})"
   deletion_window_in_days = 7
@@ -27,7 +23,6 @@ resource "aws_kms_key" "flow_logs" {
     Environment = var.environment
   }
 }
-
 # Create KMS Alias
 resource "aws_kms_alias" "flow_logs" {
   name          = "alias/vpc-flow-logs-${var.environment}"
