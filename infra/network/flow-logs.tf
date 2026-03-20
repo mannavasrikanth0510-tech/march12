@@ -51,7 +51,7 @@ data "aws_iam_policy_document" "vpc_flow_logs_policy_doc" {
       "logs:PutLogEvents"
     ]
     resources = [
-      "${aws_cloudwatch_log_group.vpc_flow_logs.arn}:log-stream:*"
+      "${aws_cloudwatch_log_group.vpc_flow_logs.arn}:log-stream:vpc-flow-logs-stream"
     ]
   }
 
