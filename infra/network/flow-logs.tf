@@ -1,3 +1,7 @@
+# Get current AWS account ID
+data "aws_caller_identity" "current" {}
+
+# Create KMS Key for encryption
 resource "aws_kms_key" "flow_logs" {
   description             = "CMK for VPC Flow Logs (${var.environment})"
   deletion_window_in_days = 7
@@ -24,11 +28,13 @@ resource "aws_kms_key" "flow_logs" {
   }
 }
 
+# Create KMS Alias
 resource "aws_kms_alias" "flow_logs" {
   name          = "alias/vpc-flow-logs-${var.environment}"
   target_key_id = aws_kms_key.flow_logs.key_id
 }
 
+# Create CloudWatch Log Group with KMS encryption
 resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
   name              = "/aws/vpc/flow-logs/${var.environment}"
   retention_in_days = 30
@@ -40,6 +46,7 @@ resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
   }
 }
 
+# Create IAM Role for VPC Flow Logs
 resource "aws_iam_role" "vpc_flow_logs_role" {
   name = "vpc-flow-logs-role-${var.environment}"
 
@@ -55,8 +62,14 @@ resource "aws_iam_role" "vpc_flow_logs_role" {
       }
     ]
   })
+
+  tags = {
+    Name        = "vpc-flow-logs-role-${var.environment}"
+    Environment = var.environment
+  }
 }
 
+# Create IAM Policy Document for CloudWatch Logs
 data "aws_iam_policy_document" "vpc_flow_logs_policy_doc" {
   statement {
     sid    = "AllowCreateAndWriteFlowLogStreams"
@@ -83,12 +96,14 @@ data "aws_iam_policy_document" "vpc_flow_logs_policy_doc" {
   }
 }
 
+# Attach IAM Policy to Role
 resource "aws_iam_role_policy" "vpc_flow_logs_policy" {
   name   = "vpc-flow-logs-policy-${var.environment}"
   role   = aws_iam_role.vpc_flow_logs_role.id
   policy = data.aws_iam_policy_document.vpc_flow_logs_policy_doc.json
 }
 
+# Create VPC Flow Log
 resource "aws_flow_log" "main" {
   vpc_id               = aws_vpc.main.id
   traffic_type         = "ALL"
