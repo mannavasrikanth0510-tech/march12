@@ -10,7 +10,7 @@ terraform {
     bucket  = "your-bucket-name"
     key     = "your/key/path"
     region  = "your-region"
-    dynamodb_table = "my-lock-table" 
+    dynamodb_table = "terraform-locks"
     encrypt = true
   }
 }
