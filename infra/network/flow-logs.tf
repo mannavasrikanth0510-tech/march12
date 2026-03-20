@@ -1,3 +1,10 @@
+# Get current AWS account ID
+data "aws_caller_identity" "current" {}
+
+# Get current region (used in KMS policy condition)
+data "aws_region" "current" {}
+
+# Create KMS Key for encryption
 resource "aws_kms_key" "flow_logs" {
   description             = "CMK for VPC Flow Logs (${var.environment})"
   deletion_window_in_days = 7
@@ -7,13 +14,33 @@ resource "aws_kms_key" "flow_logs" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "Enable IAM User Permissions"
+        Sid    = "EnableRootPermissions"
         Effect = "Allow"
         Principal = {
           AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
         }
         Action   = "kms:*"
         Resource = "*"
+      },
+      {
+        Sid    = "AllowCloudWatchLogsUseOfTheKey"
+        Effect = "Allow"
+        Principal = {
+          Service = "logs.${data.aws_region.current.name}.amazonaws.com"
+        }
+        Action = [
+          "kms:Encrypt",
+          "kms:Decrypt",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:DescribeKey"
+        ]
+        Resource = "*"
+        Condition = {
+          ArnEquals = {
+            "kms:EncryptionContext:aws:logs:arn" = aws_cloudwatch_log_group.vpc_flow_logs.arn
+          }
+        }
       }
     ]
   })
@@ -23,6 +50,7 @@ resource "aws_kms_key" "flow_logs" {
     Environment = var.environment
   }
 }
+
 # Create KMS Alias
 resource "aws_kms_alias" "flow_logs" {
   name          = "alias/vpc-flow-logs-${var.environment}"
@@ -74,7 +102,7 @@ data "aws_iam_policy_document" "vpc_flow_logs_policy_doc" {
       "logs:PutLogEvents"
     ]
     resources = [
-      "${aws_cloudwatch_log_group.vpc_flow_logs.arn}:log-stream:vpc-flow-logs-stream"
+      "${aws_cloudwatch_log_group.vpc_flow_logs.arn}:*"
     ]
   }
 
@@ -85,9 +113,7 @@ data "aws_iam_policy_document" "vpc_flow_logs_policy_doc" {
       "logs:DescribeLogGroups",
       "logs:DescribeLogStreams"
     ]
-    resources = [
-      aws_cloudwatch_log_group.vpc_flow_logs.arn
-    ]
+    resources = ["*"]
   }
 }
 
