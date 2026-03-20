@@ -7,10 +7,10 @@ terraform {
     }
   }
   backend "s3" {
-bucket         = "nikhil-demo-bucket-20260317-01"
-key            = "terraform.tfstate"
-region         = "us-east-1"
-encrypt        = true
+    bucket  = "your-bucket-name"
+    key     = "your/key/path"
+    region  = "your-region"
+    encrypt = true
   }
 }
 
