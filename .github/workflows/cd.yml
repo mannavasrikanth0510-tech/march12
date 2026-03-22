@@ -32,7 +32,7 @@ jobs:
           echo "WORKING_DIR=${{ env.WORKING_DIR }}"
           pwd
           ls -la
-          find . -maxdepth 2 -name "*.tf"
+          find . -maxdepth 3 -name "*.tf"
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -46,11 +46,7 @@ jobs:
           terraform_version: ${{ env.TF_VERSION }}
 
       - name: Terraform Init (connect state in S3)
-        working-directory: infra/network
         run: |
-
-          cd infra/network
-
           terraform init -reconfigure \
             -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
             -backend-config="key=${{ secrets.TF_STATE_KEY }}" \
@@ -59,10 +55,7 @@ jobs:
             -backend-config="encrypt=true"
 
       - name: Terraform Apply
-        working-directory: infra/network
         run: |
-
-          cd infra/network
           terraform apply -auto-approve \
             -var="bucket_name=${{ secrets.BUCKET_NAME }}" \
             -var="environment=prod"
