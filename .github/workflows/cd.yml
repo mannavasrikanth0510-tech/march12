@@ -13,7 +13,7 @@ env:
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
   TF_VERSION: "1.8.5"
-  WORKING_DIR: infra/network
+  WORKING_DIR: infra
 
 jobs:
   terraform-cd:
@@ -44,7 +44,11 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
+
       - name: Terraform Init
+      - name: Terraform Init (connect state in S3)
+        working-directory: infra
+
         run: |
           terraform init -reconfigure \
             -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
@@ -57,6 +61,8 @@ jobs:
         run: terraform validate
 
       - name: Terraform Apply
+
+        working-directory: infra
         run: |
           terraform apply -auto-approve \
             -var="bucket_name=${{ secrets.BUCKET_NAME }}" \
