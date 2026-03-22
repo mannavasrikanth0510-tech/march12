@@ -29,10 +29,9 @@ jobs:
 
       - name: Debug files
         run: |
-          echo "WORKING_DIR=${{ env.WORKING_DIR }}"
-          pwd
+          echo "PWD=$(pwd)"
           ls -la
-          find . -maxdepth 3 -name "*.tf"
+          find . -maxdepth 2 -name "*.tf" -print
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -45,7 +44,7 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Terraform Init (connect state in S3)
+      - name: Terraform Init
         run: |
           terraform init -reconfigure \
             -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
@@ -53,6 +52,9 @@ jobs:
             -backend-config="region=${{ vars.AWS_REGION }}" \
             -backend-config="dynamodb_table=${{ secrets.TF_LOCK_TABLE }}" \
             -backend-config="encrypt=true"
+
+      - name: Terraform Validate
+        run: terraform validate
 
       - name: Terraform Apply
         run: |
