@@ -1,3 +1,4 @@
+data "aws_caller_identity" "current" {}
 resource "aws_kms_key" "flow_logs" {
   description             = "CMK for VPC Flow Logs (${var.environment})"
   deletion_window_in_days = 7
@@ -23,27 +24,6 @@ resource "aws_kms_key" "flow_logs" {
     Environment = var.environment
   }
 }
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Sid    = "Enable IAM User Permissions",
-        Effect = "Allow",
-        Principal = {
-          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
-        },
-        Action   = "kms:*",
-        Resource = "*"
-      }
-    ]
-  })
-
-  tags = {
-    Name        = "kms-flow-logs-${var.environment}"
-    Environment = var.environment
-  }
-}
-
 resource "aws_iam_role" "vpc_flow_logs_role" {
   name = "vpc-flow-logs-role-${var.environment}"
 
