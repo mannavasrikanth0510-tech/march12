@@ -1,6 +1,7 @@
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
+
 data "aws_iam_policy_document" "vpc_flow_logs_assume_role" {
   statement {
     effect = "Allow"
@@ -13,7 +14,6 @@ data "aws_iam_policy_document" "vpc_flow_logs_assume_role" {
     actions = ["sts:AssumeRole"]
   }
 }
-
 resource "aws_kms_key" "flow_logs" {
   description             = "CMK for VPC Flow Logs (${var.environment})"
   deletion_window_in_days = 7
@@ -66,6 +66,7 @@ resource "aws_kms_key" "flow_logs" {
       }
     ]
   })
+
 
   tags = {
     Name        = "kms-flow-logs-${var.environment}"
