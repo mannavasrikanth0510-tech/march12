@@ -13,7 +13,7 @@ env:
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
   TF_VERSION: "1.8.5"
-  WORKING_DIR: infra
+  WORKING_DIR: infra/network
 
 jobs:
   terraform-ci:
@@ -21,6 +21,7 @@ jobs:
     defaults:
       run:
         working-directory: ${{ env.WORKING_DIR }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,6 +31,7 @@ jobs:
           echo "WORKING_DIR=${{ env.WORKING_DIR }}"
           pwd
           ls -la
+          find . -maxdepth 2 -name "*.tf" -print
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -60,7 +62,7 @@ jobs:
       - name: Security Scan (tfsec)
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
-          working_directory: ${{ env.WORKING_DIR }}
+          working_directory: infra/network
           version: v1.28.14
           github_token: ${{ github.token }}
 
