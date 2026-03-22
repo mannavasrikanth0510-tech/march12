@@ -55,6 +55,29 @@ resource "aws_kms_key" "flow_logs" {
   })
 }
 
+data "aws_iam_policy_document" "vpc_flow_logs_assume_role" {
+  statement {
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["vpc-flow-logs.amazonaws.com"]
+    }
+
+    actions = ["sts:AssumeRole"]
+  }
+}
+
+resource "aws_iam_role" "vpc_flow_logs_role" {
+  name               = "vpc-flow-logs-role-${var.environment}"
+  assume_role_policy = data.aws_iam_policy_document.vpc_flow_logs_assume_role.json
+
+  tags = {
+    Name        = "vpc-flow-logs-role-${var.environment}"
+    Environment = var.environment
+  }
+}
+
 resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
   name              = "/aws/vpc/flow-logs/${var.environment}"
   retention_in_days = 30
