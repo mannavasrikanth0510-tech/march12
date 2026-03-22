@@ -41,6 +41,17 @@ resource "aws_iam_role" "vpc_flow_logs_role" {
   })
 }
 
+resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
+  name              = "/aws/vpc/flow-logs/${var.environment}"
+  retention_in_days = 30
+  kms_key_id        = aws_kms_key.flow_logs.arn
+
+  tags = {
+    Name        = "vpc-flow-logs-${var.environment}"
+    Environment = var.environment
+  }
+}
+
 data "aws_iam_policy_document" "vpc_flow_logs_policy_doc" {
   statement {
     sid    = "AllowCreateAndWriteFlowLogStreams"
