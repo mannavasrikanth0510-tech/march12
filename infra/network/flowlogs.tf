@@ -1,20 +1,8 @@
+data "aws_caller_identity" "current" {}
 resource "aws_kms_key" "flow_logs" {
   description             = "CMK for VPC Flow Logs (${var.environment})"
   deletion_window_in_days = 7
   enable_key_rotation     = true
-policy = jsonencode({
-    Version = "2012-10-17"
-    Id      = "key-default-1"
-    Statement = [
-      {
-        Sid    = "Enable IAM User Permissions"
-        Effect = "Allow"
-        Principal = {
-          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
-        },
-        Action   = "kms:*"
-        Resource = "*"
-      },
 
   policy = jsonencode({
     Version = "2012-10-17",
@@ -36,7 +24,6 @@ policy = jsonencode({
     Environment = var.environment
   }
 }
-
 resource "aws_iam_role" "vpc_flow_logs_role" {
   name = "vpc-flow-logs-role-${var.environment}"
 
@@ -52,6 +39,17 @@ resource "aws_iam_role" "vpc_flow_logs_role" {
       }
     ]
   })
+}
+
+resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
+  name              = "/aws/vpc/flow-logs/${var.environment}"
+  retention_in_days = 30
+  kms_key_id        = aws_kms_key.flow_logs.arn
+
+  tags = {
+    Name        = "vpc-flow-logs-${var.environment}"
+    Environment = var.environment
+  }
 }
 
 data "aws_iam_policy_document" "vpc_flow_logs_policy_doc" {
