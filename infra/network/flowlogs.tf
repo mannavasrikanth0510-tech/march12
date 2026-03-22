@@ -1,41 +1,55 @@
 data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
+
 resource "aws_kms_key" "flow_logs" {
   description             = "CMK for VPC Flow Logs (${var.environment})"
   deletion_window_in_days = 7
   enable_key_rotation     = true
 
   policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Sid    = "Enable IAM User Permissions",
-        Effect = "Allow",
-        Principal = {
-          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
-        },
-        Action   = "kms:*",
-        Resource = "*"
-      }
-    ]
-  })
-
-  tags = {
-    Name        = "kms-flow-logs-${var.environment}"
-    Environment = var.environment
-  }
-}
-resource "aws_iam_role" "vpc_flow_logs_role" {
-  name = "vpc-flow-logs-role-${var.environment}"
-
-  assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
+        Sid    = "EnableRootPermissions"
         Effect = "Allow"
         Principal = {
-          Service = "vpc-flow-logs.amazonaws.com"
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
         }
-        Action = "sts:AssumeRole"
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowCloudWatchLogsServiceUse"
+        Effect = "Allow"
+        Principal = {
+          Service = "logs.${data.aws_region.current.name}.amazonaws.com"
+        }
+        Action = [
+          "kms:Encrypt",
+          "kms:Decrypt",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:DescribeKey"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowCloudWatchLogsGrantManagement"
+        Effect = "Allow"
+        Principal = {
+          Service = "logs.${data.aws_region.current.name}.amazonaws.com"
+        }
+        Action = [
+          "kms:CreateGrant",
+          "kms:ListGrants",
+          "kms:RevokeGrant"
+        ]
+        Resource = "*"
+        Condition = {
+          Bool = {
+            "kms:GrantIsForAWSResource" = "true"
+          }
+        }
       }
     ]
   })
