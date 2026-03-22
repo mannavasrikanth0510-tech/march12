@@ -54,6 +54,7 @@ resource "aws_kms_key" "flow_logs" {
     ]
   })
 }
+
 resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
   name              = "/aws/vpc/flow-logs/${var.environment}"
   retention_in_days = 30
