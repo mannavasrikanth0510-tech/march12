@@ -8,7 +8,7 @@ terraform {
     }
   }
 
-  backend "s3" {}
+  backend "s3" {AWS_REGION}
 }
 
 provider "aws" {
