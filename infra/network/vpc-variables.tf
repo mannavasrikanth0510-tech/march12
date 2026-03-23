@@ -69,3 +69,7 @@ variable "alb_ingress_cidr" {
   description = "CIDR allowed to access ALB over HTTP (80)"
   default     = "0.0.0.0/0"
 }
+variable "acm_certificate_arn" {
+  type        = string
+  description = "ACM certificate ARN for the ALB HTTPS listener"
+}
