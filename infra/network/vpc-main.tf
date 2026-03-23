@@ -112,10 +112,11 @@ resource "aws_route_table_association" "private_2_assoc" {
 }
 
 # -------------------------
-# ALB + EC2 (added)
-# ALB in ONE public subnet (public_1)
+# ALB + EC2
+# ALB in public subnets (public_1, public_2)
 # EC2 in private subnet (private_1)
 # -------------------------
+
 ##############################
 # Security Group - Public ALB (HTTP redirect + HTTPS)
 ##############################
@@ -142,12 +143,13 @@ resource "aws_security_group" "alb_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Egress - all outbound allowed
+  # Egress: restrict to app port inside VPC (better than 0.0.0.0/0)
   egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    description = "To targets in VPC only"
+    from_port   = var.app_port
+    to_port     = var.app_port
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
   }
 
   tags = { Name = "alb-sg-${var.environment}" }
@@ -169,6 +171,8 @@ resource "aws_security_group" "app_sg" {
     security_groups = [aws_security_group.alb_sg.id]
   }
 
+  # NOTE: Keeping outbound open is common so the instance can reach OS repos/AWS APIs via NAT.
+  # If tfsec blocks this in your org, you will need VPC endpoints + tighter egress rules.
   egress {
     description = "Outbound"
     from_port   = 0
@@ -184,28 +188,28 @@ resource "aws_security_group" "app_sg" {
 # Public ALB
 ##############################
 resource "aws_lb" "app_alb" {
-  name               = "app-alb-${var.environment}"
-  load_balancer_type = "application"
-  internal           = false
-  subnets            = [aws_subnet.public_1.id, aws_subnet.public_2.id]
-  security_groups    = [aws_security_group.alb_sg.id]
-  drop_invalid_header_fields = true  # Security best practice
+  name                       = "app-alb-${var.environment}"
+  load_balancer_type         = "application"
+  internal                   = false
+  subnets                    = [aws_subnet.public_1.id, aws_subnet.public_2.id]
+  security_groups            = [aws_security_group.alb_sg.id]
+  drop_invalid_header_fields = true # Security best practice
 
   tags = { Name = "app-alb-${var.environment}" }
 }
 
 ##############################
-# Target Group
+# Target Group (targets are HTTP on EC2)
 ##############################
 resource "aws_lb_target_group" "app_tg" {
   name     = "app-tg-${var.environment}"
   vpc_id   = aws_vpc.main.id
-  protocol = "HTTPS"
+  protocol = "HTTP"
   port     = var.app_port
 
   health_check {
     enabled             = true
-    protocol            = "HTTPS"
+    protocol            = "HTTP"
     path                = var.health_check_path
     matcher             = "200-399"
     interval            = 30
@@ -220,6 +224,7 @@ resource "aws_lb_target_group" "app_tg" {
 ##############################
 # ALB Listeners
 ##############################
+
 # HTTP → redirect to HTTPS
 resource "aws_lb_listener" "http_redirect" {
   load_balancer_arn = aws_lb.app_alb.arn
@@ -236,17 +241,31 @@ resource "aws_lb_listener" "http_redirect" {
   }
 }
 
-# HTTPS listener
+# HTTPS listener (requires a real ACM certificate ARN)
 resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_lb.app_alb.arn
   port              = 443
   protocol          = "HTTPS"
-  ssl_policy        = "ELBSecurityPolicy-2016-08"
-  certificate_arn   = aws_acm_certificate.my_cert.arn
+
+  ssl_policy      = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn = var.acm_certificate_arn
 
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.app_tg.arn
+  }
+}
+
+##############################
+# Latest Amazon Linux 2023 AMI
+##############################
+data "aws_ami" "al2023" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-*-x86_64"]
   }
 }
 
@@ -260,12 +279,11 @@ resource "aws_instance" "app" {
   vpc_security_group_ids = [aws_security_group.app_sg.id]
   key_name               = var.key_name
 
-  # Enable IMDS token requirement
   metadata_options {
-    http_tokens = "required"
+    http_endpoint = "enabled"
+    http_tokens   = "required"
   }
 
-  # Encrypt root volume
   root_block_device {
     encrypted = true
   }
