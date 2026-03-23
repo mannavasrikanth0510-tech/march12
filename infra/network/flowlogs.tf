@@ -25,7 +25,6 @@ resource "aws_iam_role" "vpc_flow_logs_role" {
   })
 }
 
-# Policy allowing writes to ONLY this log group
 data "aws_iam_policy_document" "vpc_flow_logs_policy_doc" {
   statement {
     sid    = "AllowWriteVPCFlowLogs"
@@ -35,8 +34,9 @@ data "aws_iam_policy_document" "vpc_flow_logs_policy_doc" {
       "logs:PutLogEvents"
     ]
 
-    # tfsec may still dislike this wildcard, but CloudWatch log streams are dynamic.
-    # Keep it scoped to this one log group.
+    # tfsec: CloudWatch log streams are created dynamically by the service.
+    # We scope to a single log group ARN; wildcard is required for log-stream name.
+    #tfsec:ignore:aws-iam-no-policy-wildcards
     resources = [
       "${aws_cloudwatch_log_group.vpc_flow_logs.arn}:log-stream:*"
     ]
