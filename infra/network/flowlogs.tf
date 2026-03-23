@@ -9,6 +9,16 @@ resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
     Environment = var.environment
   }
 }
+resource "aws_kms_key" "cw_flow_logs" {
+  description             = "KMS key for VPC Flow Logs CloudWatch Log Group (${var.environment})"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+}
+
+resource "aws_kms_alias" "cw_flow_logs" {
+  name          = "alias/vpc-flow-logs-${var.environment}"
+  target_key_id = aws_kms_key.cw_flow_logs.key_id
+}
 # IAM role assumed by the VPC Flow Logs service
 resource "aws_iam_role" "vpc_flow_logs_role" {
   name = "vpc-flow-logs-role-${var.environment}"
