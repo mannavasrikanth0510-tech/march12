@@ -48,7 +48,7 @@ resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
  # description             = "KMS key for VPC Flow Logs CloudWatch Log Group (${var.environment})"
   #deletion_window_in_days = 7
   #enable_key_rotation     = true
-}
+#}
 
 resource "aws_kms_alias" "cw_flow_logs" {
   name          = "alias/vpc-flow-logs-${var.environment}"
