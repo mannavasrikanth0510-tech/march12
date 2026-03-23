@@ -1,3 +1,14 @@
+resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
+  name              = "/aws/vpc-flow-logs/${var.environment}"
+  retention_in_days = 30
+
+  kms_key_id = aws_kms_key.cw_flow_logs.arn
+
+  tags = {
+    Name        = "vpc-flow-logs-${var.environment}"
+    Environment = var.environment
+  }
+}
 # Log group to store VPC Flow Logs
 resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
   name              = "/aws/vpc-flow-logs/${var.environment}"
