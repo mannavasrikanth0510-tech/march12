@@ -9,17 +9,6 @@ resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
     Environment = var.environment
   }
 }
-# Log group to store VPC Flow Logs
-resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
-  name              = "/aws/vpc-flow-logs/${var.environment}"
-  retention_in_days = 30
-
-  tags = {
-    Name        = "vpc-flow-logs-${var.environment}"
-    Environment = var.environment
-  }
-}
-
 # IAM role assumed by the VPC Flow Logs service
 resource "aws_iam_role" "vpc_flow_logs_role" {
   name = "vpc-flow-logs-role-${var.environment}"
