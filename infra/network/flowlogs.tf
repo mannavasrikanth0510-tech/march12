@@ -9,7 +9,6 @@ resource "aws_kms_key" "cw_flow_logs" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      # Allow your account full control of the key
       {
         Sid      = "EnableRootPermissions"
         Effect   = "Allow"
@@ -17,8 +16,6 @@ resource "aws_kms_key" "cw_flow_logs" {
         Action   = "kms:*"
         Resource = "*"
       },
-
-      # Allow CloudWatch Logs in this region to use the key for this log group
       {
         Sid    = "AllowCloudWatchLogsUseOfKey"
         Effect = "Allow"
@@ -33,11 +30,6 @@ resource "aws_kms_key" "cw_flow_logs" {
           "kms:DescribeKey"
         ]
         Resource = "*"
-        Condition = {
-          ArnLike = {
-            "kms:EncryptionContext:aws:logs:arn" = "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:${aws_cloudwatch_log_group.vpc_flow_logs.name}"
-          }
-        }
       }
     ]
   })
@@ -46,8 +38,7 @@ resource "aws_kms_key" "cw_flow_logs" {
 resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
   name              = "/aws/vpc-flow-logs/${var.environment}"
   retention_in_days = 30
-
-  kms_key_id = aws_kms_key.cw_flow_logs.arn
+  kms_key_id        = aws_kms_key.cw_flow_logs.arn
 
   tags = {
     Name        = "vpc-flow-logs-${var.environment}"
