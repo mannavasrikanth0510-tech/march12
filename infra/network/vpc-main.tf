@@ -116,23 +116,34 @@ resource "aws_route_table_association" "private_2_assoc" {
 # ALB in ONE public subnet (public_1)
 # EC2 in private subnet (private_1)
 # -------------------------
-
-# ALB Security Group: allow internet -> ALB:80
+##############################
+# Security Group - Public ALB (HTTP redirect + HTTPS)
+##############################
 resource "aws_security_group" "alb_sg" {
   name        = "alb-sg-${var.environment}"
-  description = "ALB SG: inbound HTTP from internet"
+  description = "ALB SG: public internet HTTP/HTTPS"
   vpc_id      = aws_vpc.main.id
 
+  # Ingress: HTTP redirect only
   ingress {
-    description = "HTTP"
+    description = "HTTP redirect to HTTPS"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = [var.alb_ingress_cidr]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Ingress: HTTPS secure
+  ingress {
+    description = "HTTPS"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Egress - all outbound allowed
   egress {
-    description = "Outbound"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -142,10 +153,12 @@ resource "aws_security_group" "alb_sg" {
   tags = { Name = "alb-sg-${var.environment}" }
 }
 
-# EC2 Security Group: allow ALB -> EC2:app_port only
+##############################
+# Security Group - EC2 (private subnet)
+##############################
 resource "aws_security_group" "app_sg" {
   name        = "app-sg-${var.environment}"
-  description = "EC2 SG: allow app port from ALB SG only"
+  description = "EC2 SG: allow ALB -> EC2 only"
   vpc_id      = aws_vpc.main.id
 
   ingress {
@@ -167,28 +180,32 @@ resource "aws_security_group" "app_sg" {
   tags = { Name = "app-sg-${var.environment}" }
 }
 
-# ALB (internet-facing) in ONE public subnet
+##############################
+# Public ALB
+##############################
 resource "aws_lb" "app_alb" {
   name               = "app-alb-${var.environment}"
   load_balancer_type = "application"
   internal           = false
-
-  subnets         = [aws_subnet.public_1.id]
-  security_groups = [aws_security_group.alb_sg.id]
+  subnets            = [aws_subnet.public_1.id, aws_subnet.public_2.id]
+  security_groups    = [aws_security_group.alb_sg.id]
+  drop_invalid_header_fields = true  # Security best practice
 
   tags = { Name = "app-alb-${var.environment}" }
 }
 
-# Target group forwards to EC2 on app_port
+##############################
+# Target Group
+##############################
 resource "aws_lb_target_group" "app_tg" {
   name     = "app-tg-${var.environment}"
   vpc_id   = aws_vpc.main.id
-  protocol = "HTTP"
+  protocol = "HTTPS"
   port     = var.app_port
 
   health_check {
     enabled             = true
-    protocol            = "HTTP"
+    protocol            = "HTTPS"
     path                = var.health_check_path
     matcher             = "200-399"
     interval            = 30
@@ -200,11 +217,32 @@ resource "aws_lb_target_group" "app_tg" {
   tags = { Name = "app-tg-${var.environment}" }
 }
 
-# Listener: 80 -> forward to target group
-resource "aws_lb_listener" "http" {
+##############################
+# ALB Listeners
+##############################
+# HTTP → redirect to HTTPS
+resource "aws_lb_listener" "http_redirect" {
   load_balancer_arn = aws_lb.app_alb.arn
   port              = 80
   protocol          = "HTTP"
+
+  default_action {
+    type = "redirect"
+    redirect {
+      protocol    = "HTTPS"
+      port        = "443"
+      status_code = "HTTP_301"
+    }
+  }
+}
+
+# HTTPS listener
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.app_alb.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  certificate_arn   = aws_acm_certificate.my_cert.arn
 
   default_action {
     type             = "forward"
@@ -212,18 +250,9 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-# Latest Amazon Linux 2023 AMI
-data "aws_ami" "al2023" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["al2023-ami-*-x86_64"]
-  }
-}
-
-# EC2 instance in private subnet (private_1)
+##############################
+# EC2 instance (private subnet)
+##############################
 resource "aws_instance" "app" {
   ami                    = data.aws_ami.al2023.id
   instance_type          = var.instance_type
@@ -231,10 +260,19 @@ resource "aws_instance" "app" {
   vpc_security_group_ids = [aws_security_group.app_sg.id]
   key_name               = var.key_name
 
+  # Enable IMDS token requirement
+  metadata_options {
+    http_tokens = "required"
+  }
+
+  # Encrypt root volume
+  root_block_device {
+    encrypted = true
+  }
+
   user_data = <<-EOF
               #!/bin/bash
               set -e
-
               dnf -y update
               dnf -y install python3
 
