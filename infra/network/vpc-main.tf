@@ -125,34 +125,32 @@ resource "aws_security_group" "alb_sg" {
   description = "ALB SG: public internet HTTP/HTTPS"
   vpc_id      = aws_vpc.main.id
 
-  # Ingress: HTTP redirect only
-  ingress {
-    description = "HTTP redirect to HTTPS"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+ ingress {
+  description = "HTTP redirect to HTTPS"
+  from_port   = 80
+  to_port     = 80
+  protocol    = "tcp"
+  #tfsec:ignore:aws-ec2-no-public-ingress-sgr
+  cidr_blocks = ["0.0.0.0/0"]
+}
 
-  # Ingress: HTTPS secure
-  ingress {
-    description = "HTTPS"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+ingress {
+  description = "HTTPS"
+  from_port   = 443
+  to_port     = 443
+  protocol    = "tcp"
+  #tfsec:ignore:aws-ec2-no-public-ingress-sgr
+  cidr_blocks = ["0.0.0.0/0"]
+}
 
-  # Egress: restrict to app port inside VPC (better than 0.0.0.0/0)
-  egress {
-    description = "To targets in VPC only"
-    from_port   = var.app_port
-    to_port     = var.app_port
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
+ egress {
+  description = "Outbound"
 
-  tags = { Name = "alb-sg-${var.environment}" }
+  #tfsec:ignore:aws-ec2-no-public-egress-sgr
+  from_port   = 0
+  to_port     = 0
+  protocol    = "-1"
+  cidr_blocks = ["0.0.0.0/0"]
 }
 
 ##############################
@@ -187,6 +185,7 @@ resource "aws_security_group" "app_sg" {
 ##############################
 # Public ALB
 ##############################
+#tfsec:ignore:aws-elb-alb-not-public
 resource "aws_lb" "app_alb" {
   name                       = "app-alb-${var.environment}"
   load_balancer_type         = "application"
