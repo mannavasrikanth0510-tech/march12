@@ -125,34 +125,40 @@ resource "aws_security_group" "alb_sg" {
   description = "ALB SG: public internet HTTP/HTTPS"
   vpc_id      = aws_vpc.main.id
 
- ingress {
-  description = "HTTP redirect to HTTPS"
-  from_port   = 80
-  to_port     = 80
-  protocol    = "tcp"
-  #tfsec:ignore:aws-ec2-no-public-ingress-sgr
-  cidr_blocks = ["0.0.0.0/0"]
+  ingress {
+    description = "HTTP redirect to HTTPS"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+
+    #tfsec:ignore:aws-ec2-no-public-ingress-sgr
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "HTTPS"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+
+    #tfsec:ignore:aws-ec2-no-public-ingress-sgr
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Outbound"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+
+    #tfsec:ignore:aws-ec2-no-public-egress-sgr
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "alb-sg-${var.environment}"
+  }
 }
-
-ingress {
-  description = "HTTPS"
-  from_port   = 443
-  to_port     = 443
-  protocol    = "tcp"
-  #tfsec:ignore:aws-ec2-no-public-ingress-sgr
-  cidr_blocks = ["0.0.0.0/0"]
-}
-
- egress {
-  description = "Outbound"
-
-  #tfsec:ignore:aws-ec2-no-public-egress-sgr
-  from_port   = 0
-  to_port     = 0
-  protocol    = "-1"
-  cidr_blocks = ["0.0.0.0/0"]
-}
-
 ##############################
 # Security Group - EC2 (private subnet)
 ##############################
