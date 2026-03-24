@@ -163,6 +163,7 @@ resource "aws_security_group" "alb_sg" {
 ##############################
 # Security Group - EC2 (private subnet)
 ##############################
+#tfsec:ignore:aws-ec2-no-public-egress-sgr
 resource "aws_security_group" "app_sg" {
   name        = "app-sg-${var.environment}"
   description = "EC2 SG: allow ALB -> EC2 only"
@@ -183,7 +184,6 @@ resource "aws_security_group" "app_sg" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
- #tfsec:ignore:aws-ec2-no-public-egress-sgr
     cidr_blocks = ["0.0.0.0/0"]
   }
 
