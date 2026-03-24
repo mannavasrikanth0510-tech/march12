@@ -159,6 +159,7 @@ resource "aws_security_group" "alb_sg" {
     Name = "alb-sg-${var.environment}"
   }
 }
+
 ##############################
 # Security Group - EC2 (private subnet)
 ##############################
@@ -179,7 +180,8 @@ resource "aws_security_group" "app_sg" {
   # If tfsec blocks this in your org, you will need VPC endpoints + tighter egress rules.
   egress {
     description = "Outbound"
-#tfsec:ignore:aws-ec2-no-public-egress-sgr
+
+    #tfsec:ignore:aws-ec2-no-public-egress-sgr
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -322,7 +324,6 @@ resource "aws_instance" "app" {
   tags = { Name = "app-${var.environment}" }
 }
 
-# Attach EC2 to target group
 resource "aws_lb_target_group_attachment" "app_attach" {
   target_group_arn = aws_lb_target_group.app_tg.arn
   target_id        = aws_instance.app.id
