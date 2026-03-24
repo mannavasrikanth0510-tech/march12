@@ -180,11 +180,10 @@ resource "aws_security_group" "app_sg" {
   # If tfsec blocks this in your org, you will need VPC endpoints + tighter egress rules.
   egress {
     description = "Outbound"
-
-    #tfsec:ignore:aws-ec2-no-public-egress-sgr
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
+ #tfsec:ignore:aws-ec2-no-public-egress-sgr
     cidr_blocks = ["0.0.0.0/0"]
   }
 
