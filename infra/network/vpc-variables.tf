@@ -70,6 +70,7 @@ variable "alb_ingress_cidr" {
   default     = "0.0.0.0/0"
 }
 variable "acm_certificate_arn" {
+  description = "ACM certificate ARN for HTTPS (optional)"
   type        = string
-  description = "ACM certificate ARN for the ALB HTTPS listener"
+  default     = ""
 }
