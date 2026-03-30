@@ -122,7 +122,7 @@ resource "aws_route_table_association" "private_2_assoc" {
 # Security Group - Public ALB (HTTP redirect + HTTPS)
 ##############################
 resource "aws_security_group" "alb_sg" {
-  name        = "alb-sg-${var.environment}"
+    name_prefix     = "alb-sg-${var.environment}"
   description = "ALB SG public internet HTTP HTTPS"
   vpc_id      = aws_vpc.main.id
 
