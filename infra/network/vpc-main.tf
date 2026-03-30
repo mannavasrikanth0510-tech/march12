@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # -------------------------
 # Networking (your existing code)
 # -------------------------
@@ -175,7 +175,7 @@ resource "aws_security_group" "app_sg" {
   name_prefix = "app-sg-${var.environment}-"
   description = "EC2 SG allow ALB > EC2 only"
   vpc_id      = aws_vpc.main.id
-  
+
   lifecycle {
     create_before_destroy = true
   }
