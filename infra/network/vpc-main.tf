@@ -162,7 +162,7 @@ resource "aws_security_group" "alb_sg" {
 
 ##############################
 # Security Group - EC2 (private subnet)
-##############################
+########
 #tfsec:ignore:aws-ec2-no-public-egress-sgr
 resource "aws_security_group" "app_sg" {
   name        = "app-sg-${var.environment}"
