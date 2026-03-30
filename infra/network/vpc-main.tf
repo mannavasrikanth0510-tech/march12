@@ -166,8 +166,9 @@ resource "aws_security_group" "alb_sg" {
 #tfsec:ignore:aws-ec2-no-public-egress-sgr
 resource "aws_security_group" "app_sg" {
   name        = "app-sg-${var.environment}"
-  description = "EC2 SG: allow ALB > EC2 only"
+  description = "EC2 SG allow ALB to EC2 only"
   vpc_id      = aws_vpc.main.id
+
   ingress {
     description     = "App from ALB"
     from_port       = var.app_port
@@ -175,19 +176,19 @@ resource "aws_security_group" "app_sg" {
     protocol        = "tcp"
     security_groups = [aws_security_group.alb_sg.id]
   }
-}
-  # NOTE: Keeping outbound open is common so the instance can reach OS repos/AWS APIs via NAT.
-  # If tfsec blocks this in your org, you will need VPC endpoints + tighter egress rules.
+
   egress {
-    description = "Outbound"
+    description = "Allow all outbound"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { Name = "app-sg-${var.environment}" 
+  tags = {
+    Name = "app-sg-${var.environment}"
   }
+}
 
 ##############################
 # Public ALB
