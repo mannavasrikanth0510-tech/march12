@@ -168,6 +168,7 @@ resource "aws_security_group" "app_sg" {
     Name = "alb-sg-${var.environment}"
   }
 }
+}
 
 ##############################
 # Security Group - EC2 (private subnet)
