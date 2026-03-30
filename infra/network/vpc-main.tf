@@ -168,7 +168,6 @@ resource "aws_security_group" "app_sg" {
   name        = "app-sg-${var.environment}"
   description = "EC2 SG: allow ALB > EC2 only"
   vpc_id      = aws_vpc.main.id
-
   ingress {
     description     = "App from ALB"
     from_port       = var.app_port
@@ -187,8 +186,8 @@ resource "aws_security_group" "app_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { Name = "app-sg-${var.environment}" }
-}
+  tags = { Name = "app-sg-${var.environment}" 
+  }
 
 ##############################
 # Public ALB
