@@ -35,6 +35,11 @@ resource "aws_kms_key" "cw_flow_logs" {
   })
 }
 
+resource "aws_kms_alias" "cw_flow_logs" {
+  name          = "alias/vpc-flow-logs-${var.environment}"
+  target_key_id = aws_kms_key.cw_flow_logs.key_id
+}
+
 resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
   name              = "/aws/vpc-flow-logs/${var.environment}"
   retention_in_days = 30
@@ -44,11 +49,6 @@ resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
     Name        = "vpc-flow-logs-${var.environment}"
     Environment = var.environment
   }
-}
-
-resource "aws_kms_alias" "cw_flow_logs" {
-  name          = "alias/vpc-flow-logs-${var.environment}"
-  target_key_id = aws_kms_key.cw_flow_logs.key_id
 }
 
 # IAM role assumed by the VPC Flow Logs service
@@ -73,13 +73,13 @@ data "aws_iam_policy_document" "vpc_flow_logs_policy_doc" {
   statement {
     sid    = "AllowWriteVPCFlowLogs"
     effect = "Allow"
+
     actions = [
       "logs:CreateLogStream",
-      "logs:PutLogEvents"
+      "logs:PutLogEvents",
+      "logs:DescribeLogStreams"
     ]
 
-    # tfsec: CloudWatch log streams are created dynamically by the service.
-    # We scope to a single log group ARN; wildcard is required for log-stream name.
     #tfsec:ignore:aws-iam-no-policy-wildcards
     resources = [
       "${aws_cloudwatch_log_group.vpc_flow_logs.arn}:log-stream:*"
@@ -95,13 +95,10 @@ resource "aws_iam_role_policy" "vpc_flow_logs_policy" {
 
 # Attach flow logs to your VPC
 resource "aws_flow_log" "main" {
-  vpc_id               = aws_vpc.main.id
-  traffic_type         = "ALL"
-  iam_role_arn         = aws_iam_role.vpc_flow_logs_role.arn
-
-  log_destination_type = "cloud-watch-logs"
-  log_destination      = aws_cloudwatch_log_group.vpc_flow_logs.arn
-
-  # optional but recommended
+  vpc_id                   = aws_vpc.main.id
+  traffic_type             = "ALL"
+  iam_role_arn             = aws_iam_role.vpc_flow_logs_role.arn
+  log_destination_type     = "cloud-watch-logs"
+  log_destination          = aws_cloudwatch_log_group.vpc_flow_logs.arn
   max_aggregation_interval = 60
 }
