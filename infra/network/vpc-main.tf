@@ -1,3 +1,7 @@
+# -------------------------
+# Networking (your existing code)
+# -------------------------
+
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
@@ -70,4 +74,261 @@ resource "aws_route_table_association" "public_1_assoc" {
 resource "aws_route_table_association" "public_2_assoc" {
   subnet_id      = aws_subnet.public_2.id
   route_table_id = aws_route_table.public_rt.id
+}
+
+resource "aws_eip" "nat" {
+  domain = "vpc"
+  tags   = { Name = "nat-eip-${var.environment}" }
+}
+
+resource "aws_nat_gateway" "nat" {
+  allocation_id = aws_eip.nat.id
+  subnet_id     = aws_subnet.public_1.id # NAT must be in a public subnet
+
+  tags = { Name = "nat-${var.environment}" }
+
+  depends_on = [aws_internet_gateway.igw]
+}
+
+resource "aws_route_table" "private_rt" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.nat.id
+  }
+
+  tags = { Name = "private-rt-${var.environment}" }
+}
+
+resource "aws_route_table_association" "private_1_assoc" {
+  subnet_id      = aws_subnet.private_1.id
+  route_table_id = aws_route_table.private_rt.id
+}
+
+resource "aws_route_table_association" "private_2_assoc" {
+  subnet_id      = aws_subnet.private_2.id
+  route_table_id = aws_route_table.private_rt.id
+}
+
+# -------------------------
+# ALB + EC2
+# ALB in public subnets (public_1, public_2)
+# EC2 in private subnet (private_1)
+# -------------------------
+
+##############################
+# Security Group - Public ALB (HTTP redirect + HTTPS)
+##############################
+resource "aws_security_group" "alb_sg" {
+  name        = "alb-sg-${var.environment}"
+  description = "ALB SG: public internet HTTP/HTTPS"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description = "HTTP redirect to HTTPS"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+
+    #tfsec:ignore:aws-ec2-no-public-ingress-sgr
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "HTTPS"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+
+    #tfsec:ignore:aws-ec2-no-public-ingress-sgr
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Outbound"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+
+    #tfsec:ignore:aws-ec2-no-public-egress-sgr
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "alb-sg-${var.environment}"
+  }
+}
+
+##############################
+# Security Group - EC2 (private subnet)
+##############################
+#tfsec:ignore:aws-ec2-no-public-egress-sgr
+resource "aws_security_group" "app_sg" {
+  name        = "app-sg-${var.environment}"
+  description = "EC2 SG: allow ALB -> EC2 only"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description     = "App from ALB"
+    from_port       = var.app_port
+    to_port         = var.app_port
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_sg.id]
+  }
+
+  # NOTE: Keeping outbound open is common so the instance can reach OS repos/AWS APIs via NAT.
+  # If tfsec blocks this in your org, you will need VPC endpoints + tighter egress rules.
+  egress {
+    description = "Outbound"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = { Name = "app-sg-${var.environment}" }
+}
+
+##############################
+# Public ALB
+##############################
+#tfsec:ignore:aws-elb-alb-not-public
+resource "aws_lb" "app_alb" {
+  name                       = "app-alb-${var.environment}"
+  load_balancer_type         = "application"
+  internal                   = false
+  subnets                    = [aws_subnet.public_1.id, aws_subnet.public_2.id]
+  security_groups            = [aws_security_group.alb_sg.id]
+  drop_invalid_header_fields = true # Security best practice
+
+  tags = { Name = "app-alb-${var.environment}" }
+}
+
+##############################
+# Target Group (targets are HTTP on EC2)
+##############################
+resource "aws_lb_target_group" "app_tg" {
+  name     = "app-tg-${var.environment}"
+  vpc_id   = aws_vpc.main.id
+  protocol = "HTTP"
+  port     = var.app_port
+
+  health_check {
+    enabled             = true
+    protocol            = "HTTP"
+    path                = var.health_check_path
+    matcher             = "200-399"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+  }
+
+  tags = { Name = "app-tg-${var.environment}" }
+}
+
+##############################
+# ALB Listeners
+##############################
+
+# HTTP → redirect to HTTPS
+resource "aws_lb_listener" "http_redirect" {
+  load_balancer_arn = aws_lb.app_alb.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type = "redirect"
+    redirect {
+      protocol    = "HTTPS"
+      port        = "443"
+      status_code = "HTTP_301"
+    }
+  }
+}
+
+# HTTPS listener (requires a real ACM certificate ARN)
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.app_alb.arn
+  port              = 443
+  protocol          = "HTTPS"
+
+  ssl_policy      = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn = var.acm_certificate_arn
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app_tg.arn
+  }
+}
+
+##############################
+# Latest Amazon Linux 2023 AMI
+##############################
+data "aws_ami" "al2023" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-*-kernel-6.1-x86_64"]
+  }
+
+  filter {
+    name   = "state"
+    values = ["available"]
+  }
+}
+##############################
+# EC2 instance (private subnet)
+##############################
+resource "aws_instance" "app" {
+  ami                    = data.aws_ami.al2023.id
+  instance_type          = var.instance_type
+  subnet_id              = aws_subnet.private_1.id
+  vpc_security_group_ids = [aws_security_group.app_sg.id]
+  key_name               = var.key_name
+
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens   = "required"
+  }
+
+  root_block_device {
+    encrypted = true
+  }
+
+  user_data = <<-EOF
+              #!/bin/bash
+              set -e
+              dnf -y update
+              dnf -y install python3
+
+              cat > /home/ec2-user/app.py <<'PY'
+              from http.server import BaseHTTPRequestHandler, HTTPServer
+
+              class Handler(BaseHTTPRequestHandler):
+                  def do_GET(self):
+                      if self.path in ["/", "/health"]:
+                          self.send_response(200)
+                          self.end_headers()
+                          self.wfile.write(b"OK")
+                      else:
+                          self.send_response(404)
+                          self.end_headers()
+
+              HTTPServer(("0.0.0.0", ${var.app_port}), Handler).serve_forever()
+              PY
+
+              nohup python3 /home/ec2-user/app.py > /var/log/app.log 2>&1 &
+              EOF
+
+  tags = { Name = "app-${var.environment}" }
+}
+
+resource "aws_lb_target_group_attachment" "app_attach" {
+  target_group_arn = aws_lb_target_group.app_tg.arn
+  target_id        = aws_instance.app.id
+  port             = var.app_port
 }
