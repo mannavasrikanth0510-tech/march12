@@ -97,12 +97,11 @@ resource "aws_iam_role_policy" "vpc_flow_logs_policy" {
 resource "aws_flow_log" "main" {
   vpc_id               = aws_vpc.main.id
   traffic_type         = "ALL"
-  log_destination_type = "cloud-watch-logs"
-  log_group_name       = aws_cloudwatch_log_group.vpc_flow_logs.name
   iam_role_arn         = aws_iam_role.vpc_flow_logs_role.arn
 
-  tags = {
-    Name        = "vpc-flow-log-${var.environment}"
-    Environment = var.environment
-  }
+  log_destination_type = "cloud-watch-logs"
+  log_destination      = aws_cloudwatch_log_group.vpc_flow_logs.arn
+
+  # optional but recommended
+  max_aggregation_interval = 60
 }
