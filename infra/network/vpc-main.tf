@@ -165,8 +165,8 @@ resource "aws_security_group" "alb_sg" {
 ########
 #tfsec:ignore:aws-ec2-no-public-egress-sgr
 resource "aws_security_group" "app_sg" {
-  name        = "app-sg-${var.environment}"
-  description = "EC2 SG allow ALB to EC2 only"
+  name_prefix = "app-sg-${var.environment}-"
+  description = "EC2 SG allow ALB > EC2 only"
   vpc_id      = aws_vpc.main.id
 
   ingress {
