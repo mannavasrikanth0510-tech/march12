@@ -124,13 +124,15 @@ resource "aws_route_table_association" "private_2_assoc" {
 resource "aws_security_group" "alb_sg" {
   name        = "alb-sg-${var.environment}"
   description = "ALB SG: public internet HTTP/HTTPS"
-=======
+
 resource "aws_security_group" "app_sg" {
   name_prefix = "app-sg-${var.environment}-"
 
   description = "EC2 SG allow ALB > EC2 only"
->>>>>>> 8ff3046efd47e69a8c2a3e8820de32f6a0efa3df
   vpc_id      = aws_vpc.main.id
+  lifecycle {
+    create_before_destroy = true
+  }
 
   ingress {
     description = "HTTP redirect to HTTPS"
