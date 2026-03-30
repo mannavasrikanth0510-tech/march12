@@ -177,7 +177,6 @@ resource "aws_security_group" "app_sg" {
     security_groups = [aws_security_group.alb_sg.id]
   }
 }
-
   # NOTE: Keeping outbound open is common so the instance can reach OS repos/AWS APIs via NAT.
   # If tfsec blocks this in your org, you will need VPC endpoints + tighter egress rules.
   egress {
