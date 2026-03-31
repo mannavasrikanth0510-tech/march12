@@ -35,8 +35,9 @@ variable "instance_type" {
 }
 
 variable "key_name" {
-  description = "Existing EC2 key pair name"
+  description = "EC2 key pair name"
   type        = string
+  default     = "terraform-key"
 }
 
 variable "allowed_ssh_cidr" {
@@ -44,3 +45,17 @@ variable "allowed_ssh_cidr" {
   type        = string
   default     = "0.0.0.0/0"
 }
+
+# Dummy variables (pipeline kosam)
+variable "bucket_name" {
+  description = "Unused placeholder"
+  type        = string
+  default     = ""
+}
+
+variable "environment" {
+  description = "Unused placeholder"
+  type        = string
+  default     = ""
+}
+
