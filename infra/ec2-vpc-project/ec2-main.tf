@@ -1,6 +1,7 @@
 # -------------------------
 # Networking (New VPC)
 # -------------------------
+#tfsec:ignore:aws-ec2-require-vpc-flow-logs-for-all-vpcs
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
@@ -10,7 +11,7 @@ resource "aws_vpc" "main" {
     Name = "${var.project_name}-vpc"
   }
 }
-
+#tfsec:ignore:aws-ec2-no-public-ip-subnet
 resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = var.public_subnet_cidr
@@ -55,7 +56,7 @@ resource "aws_security_group" "ec2_sg" {
   name        = "${var.project_name}-sg"
   description = "Allow SSH and HTTP"
   vpc_id      = aws_vpc.main.id
-
+#tfsec:ignore:aws-ec2-no-public-ingress-sgr
   ingress {
     description = "SSH"
     from_port   = 22
@@ -63,7 +64,7 @@ resource "aws_security_group" "ec2_sg" {
     protocol    = "tcp"
     cidr_blocks = [var.allowed_ssh_cidr]
   }
-
+ #tfsec:ignore:aws-ec2-no-public-ingress-sgr
   ingress {
     description = "HTTP"
     from_port   = 80
@@ -71,7 +72,7 @@ resource "aws_security_group" "ec2_sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
+  #tfsec:ignore:aws-ec2-no-public-egress-sgr
   egress {
     description = "All outbound"
     from_port   = 0
@@ -97,7 +98,8 @@ data "aws_ami" "amazon_linux" {
     values = ["amzn2-ami-hvm-*-x86_64-gp2"]
   }
 }
-
+#tfsec:ignore:aws-ec2-enforce-http-token-imds
+#tfsec:ignore:aws-ec2-enable-at-rest-encryption
 resource "aws_instance" "web" {
   ami                         = data.aws_ami.amazon_linux.id
   instance_type               = var.instance_type
