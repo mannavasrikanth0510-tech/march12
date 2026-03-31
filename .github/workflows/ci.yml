@@ -13,7 +13,7 @@ env:
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
   TF_VERSION: "1.8.5"
-  WORKING_DIR: infra/network
+  WORKING_DIR: infra/ec2-vpc-project
 
 jobs:
   terraform-ci:
@@ -62,7 +62,7 @@ jobs:
       - name: Security Scan (tfsec)
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
-          working_directory: infra/network
+          working_directory: infra/ec2-vpc-project
           version: v1.28.14
           github_token: ${{ github.token }}
 
