@@ -33,10 +33,10 @@ variable "instance_type" {
   type        = string
   default     = "t2.micro"
 }
-
 variable "key_name" {
   description = "EC2 key pair name"
   type        = string
+  default     = "terraform-key"
 }
 
 variable "allowed_ssh_cidr" {
