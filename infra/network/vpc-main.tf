@@ -313,7 +313,7 @@ resource "aws_instance" "app" {
     encrypted = true
   }
 
-user_data = <<-EOF
+  user_data = <<-EOF
 #!/bin/bash
 set -xe
 
@@ -343,7 +343,6 @@ TXT
 # Restart nginx
 systemctl restart nginx
 EOF
-
   tags = {
     Name = "app-${var.environment}"
   }
