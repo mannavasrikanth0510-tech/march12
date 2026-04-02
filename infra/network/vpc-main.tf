@@ -306,31 +306,63 @@ resource "aws_instance" "app" {
   user_data = <<-EOF
               #!/bin/bash
               set -e
+
               dnf -y update
-              dnf -y install python3
+              dnf -y install python3 python3-pip
+
+              pip3 install flask
 
               cat > /home/ec2-user/app.py <<'PY'
-              from http.server import BaseHTTPRequestHandler, HTTPServer
+              from flask import Flask
 
-              class Handler(BaseHTTPRequestHandler):
-                  def do_GET(self):
-                      if self.path in ["/", "/health"]:
-                          self.send_response(200)
-                          self.end_headers()
-                          self.wfile.write(b"OK")
-                      else:
-                          self.send_response(404)
-                          self.end_headers()
+              app = Flask(__name__)
 
-              HTTPServer(("0.0.0.0", ${var.app_port}), Handler).serve_forever()
+              @app.route("/")
+              def home():
+                  return """
+                  <html>
+                    <head><title>My Terraform App</title></head>
+                    <body>
+                      <h1>Hello from Terraform EC2 via ALB</h1>
+                      <p>App is running successfully.</p>
+                    </body>
+                  </html>
+                  """
+
+              @app.route("/health")
+              def health():
+                  return "OK", 200
+
+              @app.route("/about")
+              def about():
+                  return "This is a simple Flask app deployed on EC2 using Terraform."
+
+              if __name__ == "__main__":
+                  app.run(host="0.0.0.0", port=${var.app_port})
               PY
 
-              nohup python3 /home/ec2-user/app.py > /var/log/app.log 2>&1 &
+              cat > /etc/systemd/system/myapp.service <<'SERVICE'
+              [Unit]
+              Description=Simple Flask App
+              After=network.target
+
+              [Service]
+              User=ec2-user
+              WorkingDirectory=/home/ec2-user
+              ExecStart=/usr/bin/python3 /home/ec2-user/app.py
+              Restart=always
+
+              [Install]
+              WantedBy=multi-user.target
+              SERVICE
+
+              systemctl daemon-reload
+              systemctl enable myapp
+              systemctl start myapp
               EOF
 
   tags = { Name = "app-${var.environment}" }
 }
-
 resource "aws_lb_target_group_attachment" "app_attach" {
   target_group_arn = aws_lb_target_group.app_tg.arn
   target_id        = aws_instance.app.id
