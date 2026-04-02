@@ -295,7 +295,6 @@ data "aws_ami" "al2023" {
 # -------------------------
 # EC2 instance
 # -------------------------
-
 resource "aws_instance" "app" {
   ami                         = data.aws_ami.al2023.id
   instance_type               = var.instance_type
@@ -312,7 +311,7 @@ resource "aws_instance" "app" {
   root_block_device {
     encrypted = true
   }
-  
+
   user_data = <<-EOF
 #!/bin/bash
 set -xe
@@ -323,28 +322,24 @@ dnf -y install nginx
 systemctl enable nginx
 systemctl start nginx
 
-# Create simple HTML page
 cat > /usr/share/nginx/html/index.html <<'HTML'
 <html>
   <head><title>Terraform App</title></head>
   <body>
     <h1>Hello from EC2 via ALB 🚀</h1>
     <p>Nginx is running successfully.</p>
-    <p>For Testing Purpose.</p>
   </body>
 </html>
 HTML
 
-# Health check endpoint
 cat > /usr/share/nginx/html/health <<'TXT'
 OK
 TXT
 
-# Restart nginx
 systemctl restart nginx
 EOF
 
-tags = {
+  tags = {
     Name = "app-${var.environment}"
   }
 }
