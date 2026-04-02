@@ -376,7 +376,7 @@ EOF
 
   tags = {
     Name = "app-${var.environment}"
-  }
+  }             
 }
 
 resource "aws_lb_target_group_attachment" "app_attach" {
