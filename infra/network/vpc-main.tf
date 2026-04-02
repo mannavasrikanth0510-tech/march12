@@ -288,11 +288,12 @@ data "aws_ami" "al2023" {
 # EC2 instance (private subnet)
 ##############################
 resource "aws_instance" "app" {
-  ami                    = data.aws_ami.al2023.id
-  instance_type          = var.instance_type
-  subnet_id              = aws_subnet.private_1.id
-  vpc_security_group_ids = [aws_security_group.app_sg.id]
-  key_name               = var.key_name
+  ami                         = data.aws_ami.al2023.id
+  instance_type               = var.instance_type
+  subnet_id                   = aws_subnet.private_1.id
+  vpc_security_group_ids      = [aws_security_group.app_sg.id]
+  key_name                    = var.key_name
+  user_data_replace_on_change = true
 
   metadata_options {
     http_endpoint = "enabled"
@@ -304,64 +305,69 @@ resource "aws_instance" "app" {
   }
 
   user_data = <<-EOF
-              #!/bin/bash
-              set -e
+  #!/bin/bash
+  set -xe
 
-              dnf -y update
-              dnf -y install python3 python3-pip
+  dnf -y update
+  dnf -y install python3 python3-pip
 
-              pip3 install flask
+  python3 -m pip install --upgrade pip
+  python3 -m pip install flask
 
-              cat > /home/ec2-user/app.py <<'PY'
-              from flask import Flask
+  cat > /home/ec2-user/app.py <<'PY'
+  from flask import Flask
 
-              app = Flask(__name__)
+  app = Flask(__name__)
 
-              @app.route("/")
-              def home():
-                  return """
-                  <html>
-                    <head><title>My Terraform App</title></head>
-                    <body>
-                      <h1>Hello from Terraform EC2 via ALB</h1>
-                      <p>App is running successfully.</p>
-                    </body>
-                  </html>
-                  """
+  @app.route("/")
+  def home():
+      return """
+      <html>
+        <head><title>Terraform App</title></head>
+        <body>
+          <h1>Hello from EC2 via ALB</h1>
+          <p>App is running successfully.</p>
+        </body>
+      </html>
+      """
 
-              @app.route("/health")
-              def health():
-                  return "OK", 200
+  @app.route("/health")
+  def health():
+      return "OK", 200
 
-              @app.route("/about")
-              def about():
-                  return "This is a simple Flask app deployed on EC2 using Terraform."
+  @app.route("/info")
+  def info():
+      return "Simple Flask app running on EC2"
 
-              if __name__ == "__main__":
-                  app.run(host="0.0.0.0", port=${var.app_port})
-              PY
+  if __name__ == "__main__":
+      app.run(host="0.0.0.0", port=${var.app_port})
+  PY
 
-              cat > /etc/systemd/system/myapp.service <<'SERVICE'
-              [Unit]
-              Description=Simple Flask App
-              After=network.target
+  chown ec2-user:ec2-user /home/ec2-user/app.py
 
-              [Service]
-              User=ec2-user
-              WorkingDirectory=/home/ec2-user
-              ExecStart=/usr/bin/python3 /home/ec2-user/app.py
-              Restart=always
+  cat > /etc/systemd/system/myapp.service <<'SERVICE'
+  [Unit]
+  Description=Flask App
+  After=network.target
 
-              [Install]
-              WantedBy=multi-user.target
-              SERVICE
+  [Service]
+  User=ec2-user
+  WorkingDirectory=/home/ec2-user
+  ExecStart=/usr/bin/python3 /home/ec2-user/app.py
+  Restart=always
 
-              systemctl daemon-reload
-              systemctl enable myapp
-              systemctl start myapp
-              EOF
+  [Install]
+  WantedBy=multi-user.target
+  SERVICE
 
-  tags = { Name = "app-${var.environment}" }
+  systemctl daemon-reload
+  systemctl enable myapp
+  systemctl start myapp
+  EOF
+
+  tags = {
+    Name = "app-${var.environment}"
+  }
 }
 resource "aws_lb_target_group_attachment" "app_attach" {
   target_group_arn = aws_lb_target_group.app_tg.arn
