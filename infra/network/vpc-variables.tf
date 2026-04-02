@@ -55,7 +55,7 @@ variable "key_name" {
 variable "app_port" {
   type        = number
   description = "Port the application listens on inside EC2"
-  default     = 80
+  default     = 8080
 }
 
 variable "health_check_path" {
