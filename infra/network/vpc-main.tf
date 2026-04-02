@@ -1,6 +1,5 @@
-
 # -------------------------
-# Networking (your existing code)
+# Networking
 # -------------------------
 
 resource "aws_vpc" "main" {
@@ -28,7 +27,9 @@ resource "aws_subnet" "public_1" {
   availability_zone       = "${var.aws_region}a"
   map_public_ip_on_launch = false
 
-  tags = { Name = "public-1-${var.environment}" }
+  tags = {
+    Name = "public-1-${var.environment}"
+  }
 }
 
 resource "aws_subnet" "public_2" {
@@ -37,7 +38,9 @@ resource "aws_subnet" "public_2" {
   availability_zone       = "${var.aws_region}b"
   map_public_ip_on_launch = false
 
-  tags = { Name = "public-2-${var.environment}" }
+  tags = {
+    Name = "public-2-${var.environment}"
+  }
 }
 
 resource "aws_subnet" "private_1" {
@@ -45,7 +48,9 @@ resource "aws_subnet" "private_1" {
   cidr_block        = var.private_subnet_1_cidr
   availability_zone = "${var.aws_region}a"
 
-  tags = { Name = "private-1-${var.environment}" }
+  tags = {
+    Name = "private-1-${var.environment}"
+  }
 }
 
 resource "aws_subnet" "private_2" {
@@ -53,7 +58,9 @@ resource "aws_subnet" "private_2" {
   cidr_block        = var.private_subnet_2_cidr
   availability_zone = "${var.aws_region}b"
 
-  tags = { Name = "private-2-${var.environment}" }
+  tags = {
+    Name = "private-2-${var.environment}"
+  }
 }
 
 resource "aws_route_table" "public_rt" {
@@ -64,7 +71,9 @@ resource "aws_route_table" "public_rt" {
     gateway_id = aws_internet_gateway.igw.id
   }
 
-  tags = { Name = "public-rt-${var.environment}" }
+  tags = {
+    Name = "public-rt-${var.environment}"
+  }
 }
 
 resource "aws_route_table_association" "public_1_assoc" {
@@ -79,14 +88,19 @@ resource "aws_route_table_association" "public_2_assoc" {
 
 resource "aws_eip" "nat" {
   domain = "vpc"
-  tags   = { Name = "nat-eip-${var.environment}" }
+
+  tags = {
+    Name = "nat-eip-${var.environment}"
+  }
 }
 
 resource "aws_nat_gateway" "nat" {
   allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public_1.id # NAT must be in a public subnet
+  subnet_id     = aws_subnet.public_1.id
 
-  tags = { Name = "nat-${var.environment}" }
+  tags = {
+    Name = "nat-${var.environment}"
+  }
 
   depends_on = [aws_internet_gateway.igw]
 }
@@ -99,7 +113,9 @@ resource "aws_route_table" "private_rt" {
     nat_gateway_id = aws_nat_gateway.nat.id
   }
 
-  tags = { Name = "private-rt-${var.environment}" }
+  tags = {
+    Name = "private-rt-${var.environment}"
+  }
 }
 
 resource "aws_route_table_association" "private_1_assoc" {
@@ -113,14 +129,9 @@ resource "aws_route_table_association" "private_2_assoc" {
 }
 
 # -------------------------
-# ALB + EC2
-# ALB in public subnets (public_1, public_2)
-# EC2 in private subnet (private_1)
+# Security Groups
 # -------------------------
 
-##############################
-# Security Group - Public ALB (HTTP redirect + HTTPS)
-##############################
 resource "aws_security_group" "alb_sg" {
   name        = "alb-sg-${var.environment}"
   description = "ALB SG public internet HTTP HTTPS"
@@ -192,11 +203,10 @@ resource "aws_security_group" "app_sg" {
   }
 }
 
+# -------------------------
+# Load Balancer
+# -------------------------
 
-
-##############################
-# Public ALB
-##############################
 #tfsec:ignore:aws-elb-alb-not-public
 resource "aws_lb" "app_alb" {
   name                       = "app-alb-${var.environment}"
@@ -204,14 +214,13 @@ resource "aws_lb" "app_alb" {
   internal                   = false
   subnets                    = [aws_subnet.public_1.id, aws_subnet.public_2.id]
   security_groups            = [aws_security_group.alb_sg.id]
-  drop_invalid_header_fields = true # Security best practice
+  drop_invalid_header_fields = true
 
-  tags = { Name = "app-alb-${var.environment}" }
+  tags = {
+    Name = "app-alb-${var.environment}"
+  }
 }
 
-##############################
-# Target Group (targets are HTTP on EC2)
-##############################
 resource "aws_lb_target_group" "app_tg" {
   name     = "app-tg-${var.environment}"
   vpc_id   = aws_vpc.main.id
@@ -229,14 +238,11 @@ resource "aws_lb_target_group" "app_tg" {
     unhealthy_threshold = 2
   }
 
-  tags = { Name = "app-tg-${var.environment}" }
+  tags = {
+    Name = "app-tg-${var.environment}"
+  }
 }
 
-##############################
-# ALB Listeners
-##############################
-
-# HTTP → redirect to HTTPS
 resource "aws_lb_listener" "http_redirect" {
   load_balancer_arn = aws_lb.app_alb.arn
   port              = 80
@@ -244,6 +250,7 @@ resource "aws_lb_listener" "http_redirect" {
 
   default_action {
     type = "redirect"
+
     redirect {
       protocol    = "HTTPS"
       port        = "443"
@@ -252,7 +259,6 @@ resource "aws_lb_listener" "http_redirect" {
   }
 }
 
-# HTTPS listener (requires a real ACM certificate ARN)
 resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_lb.app_alb.arn
   port              = 443
@@ -267,9 +273,10 @@ resource "aws_lb_listener" "https" {
   }
 }
 
-##############################
-# Latest Amazon Linux 2023 AMI
-##############################
+# -------------------------
+# AMI
+# -------------------------
+
 data "aws_ami" "al2023" {
   most_recent = true
   owners      = ["amazon"]
@@ -284,9 +291,11 @@ data "aws_ami" "al2023" {
     values = ["available"]
   }
 }
-##############################
-# EC2 instance (private subnet)
-##############################
+
+# -------------------------
+# EC2 instance
+# -------------------------
+
 resource "aws_instance" "app" {
   ami                         = data.aws_ami.al2023.id
   instance_type               = var.instance_type
@@ -305,70 +314,71 @@ resource "aws_instance" "app" {
   }
 
   user_data = <<-EOF
-  #!/bin/bash
-  set -xe
+#!/bin/bash
+set -xe
 
-  dnf -y update
-  dnf -y install python3 python3-pip
+dnf -y update
+dnf -y install python3 python3-pip
 
-  python3 -m pip install --upgrade pip
-  python3 -m pip install flask
+python3 -m pip install --upgrade pip
+python3 -m pip install flask
 
-  cat > /home/ec2-user/app.py <<'PY'
-  from flask import Flask
+cat > /home/ec2-user/app.py <<'PY'
+from flask import Flask
 
-  app = Flask(__name__)
+app = Flask(__name__)
 
-  @app.route("/")
-  def home():
-      return """
-      <html>
-        <head><title>Terraform App</title></head>
-        <body>
-          <h1>Hello from EC2 via ALB</h1>
-          <p>App is running successfully.</p>
-        </body>
-      </html>
-      """
+@app.route("/")
+def home():
+    return """
+    <html>
+      <head><title>Terraform App</title></head>
+      <body>
+        <h1>Hello from EC2 via ALB</h1>
+        <p>App is running successfully.</p>
+      </body>
+    </html>
+    """
 
-  @app.route("/health")
-  def health():
-      return "OK", 200
+@app.route("/health")
+def health():
+    return "OK", 200
 
-  @app.route("/info")
-  def info():
-      return "Simple Flask app running on EC2"
+@app.route("/info")
+def info():
+    return "Simple Flask app running on EC2"
 
-  if __name__ == "__main__":
-      app.run(host="0.0.0.0", port=${var.app_port})
-  PY
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=${var.app_port})
+PY
 
-  chown ec2-user:ec2-user /home/ec2-user/app.py
+chown ec2-user:ec2-user /home/ec2-user/app.py
 
-  cat > /etc/systemd/system/myapp.service <<'SERVICE'
-  [Unit]
-  Description=Flask App
-  After=network.target
+cat > /etc/systemd/system/myapp.service <<'SERVICE'
+[Unit]
+Description=Flask App
+After=network.target
 
-  [Service]
-  User=ec2-user
-  WorkingDirectory=/home/ec2-user
-  ExecStart=/usr/bin/python3 /home/ec2-user/app.py
-  Restart=always
+[Service]
+User=ec2-user
+WorkingDirectory=/home/ec2-user
+ExecStart=/usr/bin/python3 /home/ec2-user/app.py
+Restart=always
 
-  [Install]
-  WantedBy=multi-user.target
-  SERVICE
+[Install]
+WantedBy=multi-user.target
+SERVICE
 
-  systemctl daemon-reload
-  systemctl enable myapp
-  systemctl start myapp
-  EOF
+systemctl daemon-reload
+systemctl enable myapp
+systemctl start myapp
+EOF
 
   tags = {
     Name = "app-${var.environment}"
   }
 }
+
 resource "aws_lb_target_group_attachment" "app_attach" {
   target_group_arn = aws_lb_target_group.app_tg.arn
   target_id        = aws_instance.app.id
