@@ -313,65 +313,35 @@ resource "aws_instance" "app" {
     encrypted = true
   }
 
-  user_data = <<-EOF
+user_data = <<-EOF
 #!/bin/bash
 set -xe
 
 dnf -y update
-dnf -y install python3 python3-pip
+dnf -y install nginx
 
-python3 -m pip install --upgrade pip
-python3 -m pip install flask
+systemctl enable nginx
+systemctl start nginx
 
-cat > /home/ec2-user/app.py <<'PY'
-from flask import Flask
+# Create simple HTML page
+cat > /usr/share/nginx/html/index.html <<'HTML'
+<html>
+  <head><title>Terraform App</title></head>
+  <body>
+    <h1>Hello from EC2 via ALB 🚀</h1>
+    <p>Nginx is running successfully.</p>
+    <p>For Testing Purpose.</p>
+  </body>
+</html>
+HTML
 
-app = Flask(__name__)
+# Health check endpoint
+cat > /usr/share/nginx/html/health <<'TXT'
+OK
+TXT
 
-@app.route("/")
-def home():
-    return """
-    <html>
-      <head><title>Terraform App</title></head>
-      <body>
-        <h1>Hello from EC2 via ALB</h1>
-        <p>App is running successfully.</p>
-      </body>
-    </html>
-    """
-
-@app.route("/health")
-def health():
-    return "OK", 200
-
-@app.route("/info")
-def info():
-    return "Simple Flask app running on EC2"
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=${var.app_port})
-PY
-
-chown ec2-user:ec2-user /home/ec2-user/app.py
-
-cat > /etc/systemd/system/myapp.service <<'SERVICE'
-[Unit]
-Description=Flask App
-After=network.target
-
-[Service]
-User=ec2-user
-WorkingDirectory=/home/ec2-user
-ExecStart=/usr/bin/python3 /home/ec2-user/app.py
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-SERVICE
-
-systemctl daemon-reload
-systemctl enable myapp
-systemctl start myapp
+# Restart nginx
+systemctl restart nginx
 EOF
 
   tags = {
