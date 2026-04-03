@@ -222,7 +222,7 @@ resource "aws_lb" "app_alb" {
 }
 
 resource "aws_lb_target_group" "app_tg" {
-  name     = "app-tg-${var.environment}"
+  name_prefix     = "app-tg-${var.environment}"
   vpc_id   = aws_vpc.main.id
   protocol = "HTTP"
   port     = var.app_port
@@ -236,6 +236,10 @@ resource "aws_lb_target_group" "app_tg" {
     timeout             = 5
     healthy_threshold   = 2
     unhealthy_threshold = 2
+  }
+
+lifecycle {
+    create_before_destroy = true
   }
 
   tags = {
