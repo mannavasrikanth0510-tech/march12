@@ -335,10 +335,33 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b"""
             <html>
-              <head><title>Terraform App</title></head>
+              <head><title>Terraform App</title>
+              <style>
+      body {
+        background: linear-gradient(to right, #4facfe, #00f2fe);
+        font-family: Arial, sans-serif;
+        text-align: center;
+        color: Blue;
+        margin-top: 100px;
+      }
+      .card {
+        background: rgba(0,0,0,0.6);
+        padding: 30px;
+        border-radius: 10px;
+        display: inline-block;
+      }
+      h1 {
+        color: #ffd700;
+      }
+      p {
+        font-size: 18px;
+      }
+    </style>
+    </head>
               <body>
                 <h1>Hello from EC2 via ALB</h1>
                 <p>Simple Python app is running successfully.</p>
+                <p>This is my website for testing.</p>
               </body>
             </html>
             """)
