@@ -222,14 +222,14 @@ resource "aws_lb" "app_alb" {
 }
 
 resource "aws_lb_target_group" "app_tg" {
-  name_prefix    = "app-tg-${var.environment}"
-  vpc_id   = aws_vpc.main.id
-  protocol = "HTTP"
-  port     = var.app_port
+  name_prefix = "app-tg-${var.environment}"
+  vpc_id      = aws_vpc.main.id
+  protocol    = "HTTP"
+  port        = var.app_port
 
   lifecycle {
-  create_before_destroy = true
-}
+    create_before_destroy = true
+  }
 
   health_check {
     enabled             = true
