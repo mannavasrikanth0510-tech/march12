@@ -315,28 +315,68 @@ resource "aws_instance" "app" {
   user_data = <<-EOF
 #!/bin/bash
 set -xe
+exec > >(tee /var/log/user-data.log|logger -t user-data ) 2>&1
 
 dnf -y update
-dnf -y install nginx
+dnf -y install python3
 
-systemctl enable nginx
-systemctl start nginx
+cat > /home/ec2-user/app.py <<'PY'
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
-cat > /usr/share/nginx/html/index.html <<'HTML'
-<html>
-  <head><title>Terraform App</title></head>
-  <body>
-    <h1>Hello from EC2 via ALB 🚀</h1>
-    <p>Nginx is running successfully.</p>
-  </body>
-</html>
-HTML
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/" or self.path == "/index.html":
+            self.send_response(200)
+            self.send_header("Content-type", "text/html")
+            self.end_headers()
+            self.wfile.write(b"""
+            <html>
+              <head><title>Terraform App</title></head>
+              <body>
+                <h1>Hello from EC2 via ALB</h1>
+                <p>Simple Python app is running successfully.</p>
+              </body>
+            </html>
+            """)
+        elif self.path == "/health":
+            self.send_response(200)
+            self.send_header("Content-type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"OK")
+        elif self.path == "/info":
+            self.send_response(200)
+            self.send_header("Content-type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"Simple Python HTTP server running on EC2")
+        else:
+            self.send_response(404)
+            self.end_headers()
 
-cat > /usr/share/nginx/html/health <<'TXT'
-OK
-TXT
+HTTPServer(("0.0.0.0", ${var.app_port}), Handler).serve_forever()
+PY
 
-systemctl restart nginx
+chown ec2-user:ec2-user /home/ec2-user/app.py
+
+cat > /etc/systemd/system/myapp.service <<'SERVICE'
+[Unit]
+Description=Simple Python HTTP App
+After=network.target
+
+[Service]
+User=ec2-user
+WorkingDirectory=/home/ec2-user
+ExecStart=/usr/bin/python3 /home/ec2-user/app.py
+Restart=always
+StandardOutput=append:/var/log/myapp.log
+StandardError=append:/var/log/myapp.log
+
+[Install]
+WantedBy=multi-user.target
+SERVICE
+
+systemctl daemon-reload
+systemctl enable myapp
+systemctl start myapp
 EOF
 
   tags = {
