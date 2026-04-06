@@ -47,7 +47,7 @@ resource "aws_db_instance" "app_db" {
   vpc_security_group_ids              = [aws_security_group.db_sg.id]
   multi_az                            = false
   #Performance Insights is not supported for this instance class, see AWS docs.
-  performance_insights_enabled        = false
+  performance_insights_enabled = false
 }
 
 
