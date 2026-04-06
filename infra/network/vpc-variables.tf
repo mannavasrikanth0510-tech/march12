@@ -80,5 +80,5 @@ variable "rds_password" {
   description = "The database password"
   type        = string
   sensitive   = true
-  default     = Password123!
+  default     = "Password123!"
 }
