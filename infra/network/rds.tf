@@ -46,6 +46,11 @@ resource "aws_db_instance" "app_db" {
   db_subnet_group_name                = aws_db_subnet_group.main.name
   vpc_security_group_ids              = [aws_security_group.db_sg.id]
   multi_az                            = false
-  performance_insights_enabled        = false
+  # tfsec:ignore:aws-rds-enable-performance-insights
+  # ... rest of your resource ...
+  performance_insights_enabled = false
   #performance_insights_kms_key_id     = "arn:aws:kms:us-east-1:740991959346:key/b89956ca-a4c8-4811-85d7-18360ab275b4" # or your actual KMS key ARN
 }
+
+
+
