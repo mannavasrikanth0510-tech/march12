@@ -32,7 +32,7 @@ resource "aws_db_subnet_group" "main" {
 resource "aws_db_instance" "app_db" {
   identifier                          = "app-db-${var.environment}"
   engine                              = "mysql"
-  instance_class                      = "db.t3.micro"
+  instance_class                      = "db.t3.small"
   allocated_storage                   = 20
   db_name                             = "appdb"
   username                            = "admin"
