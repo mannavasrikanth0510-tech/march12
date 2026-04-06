@@ -322,63 +322,230 @@ set -xe
 exec > >(tee /var/log/user-data.log|logger -t user-data ) 2>&1
 
 dnf -y update
-dnf -y install python3
+dnf -y install python3 python3-pip
+python3 -m pip install pymysql
 
 cat > /home/ec2-user/app.py <<'PY'
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import urlparse, parse_qs
+import pymysql
+
+DB_HOST = "${aws_db_instance.app_db.address}"
+DB_USER = "admin"
+DB_PASS = "${var.rds_password}"
+DB_NAME = "appdb"
+
+def get_connection():
+    return pymysql.connect(
+        host=DB_HOST,
+        user=DB_USER,
+        password=DB_PASS,
+        database=DB_NAME
+    )
+
+def init_db():
+    conn = get_connection()
+    with conn.cursor() as cursor:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                email VARCHAR(255) NOT NULL
+            )
+        """)
+    conn.commit()
+    conn.close()
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path == "/" or self.path == "/index.html":
+        parsed = urlparse(self.path)
+
+        if parsed.path == "/" or parsed.path == "/index.html":
             self.send_response(200)
             self.send_header("Content-type", "text/html")
             self.end_headers()
             self.wfile.write(b"""
             <html>
-              <head><title>Terraform App</title>
-              <style>
-      body {
-        background: linear-gradient(to right, #4facfe, #00f2fe);
-        font-family: Arial, sans-serif;
-        text-align: center;
-        color: Blue;
-        margin-top: 100px;
-      }
-      .card {
-        background: rgba(0,0,0,0.6);
-        padding: 30px;
-        border-radius: 10px;
-        display: inline-block;
-      }
-      h1 {
-        color: #ffd700;
-      }
-      p {
-        font-size: 18px;
-      }
-    </style>
-    </head>
+              <head>
+                <title>Terraform App</title>
+                <style>
+                  body {
+                    background: linear-gradient(to right, #4facfe, #00f2fe);
+                    font-family: Arial, sans-serif;
+                    text-align: center;
+                    color: blue;
+                    margin-top: 80px;
+                  }
+                  .card {
+                    background: rgba(255,255,255,0.9);
+                    padding: 30px;
+                    border-radius: 12px;
+                    display: inline-block;
+                    min-width: 350px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                  }
+                  h1 {
+                    color: #0b3d91;
+                  }
+                  p {
+                    font-size: 16px;
+                  }
+                  input {
+                    width: 250px;
+                    padding: 10px;
+                    margin: 8px;
+                    border-radius: 6px;
+                    border: 1px solid #ccc;
+                  }
+                  button {
+                    background: #0b3d91;
+                    color: white;
+                    border: none;
+                    padding: 10px 20px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    margin-top: 10px;
+                  }
+                  a {
+                    display: inline-block;
+                    margin-top: 15px;
+                    color: #0b3d91;
+                    text-decoration: none;
+                    font-weight: bold;
+                  }
+                </style>
+              </head>
               <body>
-                <h1>Hello from EC2 via ALB</h1>
-                <p>Simple Python app is running successfully.</p>
-                <p>This is my website for testing.</p>
+                <div class="card">
+                  <h1>User Registration</h1>
+                  <p>Enter your details below</p>
+                  <form action="/submit" method="get">
+                    <input type="text" name="name" placeholder="Enter Name" required><br>
+                    <input type="email" name="email" placeholder="Enter Email" required><br>
+                    <button type="submit">Submit</button>
+                  </form>
+                  <a href="/users">View Users</a>
+                </div>
               </body>
             </html>
             """)
-        elif self.path == "/health":
+
+        elif parsed.path == "/submit":
+            params = parse_qs(parsed.query)
+            name = params.get("name", [""])[0]
+            email = params.get("email", [""])[0]
+
+            try:
+                conn = get_connection()
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "INSERT INTO users (name, email) VALUES (%s, %s)",
+                        (name, email)
+                    )
+                conn.commit()
+                conn.close()
+
+                self.send_response(200)
+                self.send_header("Content-type", "text/html")
+                self.end_headers()
+                self.wfile.write(f"""
+                <html>
+                  <body style="font-family:Arial; text-align:center; margin-top:100px;">
+                    <h2>User added successfully!</h2>
+                    <p>Name: {name}</p>
+                    <p>Email: {email}</p>
+                    <a href="/">Go Back</a><br><br>
+                    <a href="/users">View Users</a>
+                  </body>
+                </html>
+                """.encode())
+
+            except Exception as e:
+                self.send_response(500)
+                self.send_header("Content-type", "text/html")
+                self.end_headers()
+                self.wfile.write(f"""
+                <html>
+                  <body style="font-family:Arial; text-align:center; margin-top:100px;">
+                    <h2>Database Error</h2>
+                    <p>{str(e)}</p>
+                    <a href="/">Go Back</a>
+                  </body>
+                </html>
+                """.encode())
+
+        elif parsed.path == "/users":
+            try:
+                conn = get_connection()
+                with conn.cursor() as cursor:
+                    cursor.execute("SELECT name, email FROM users ORDER BY id DESC")
+                    rows = cursor.fetchall()
+                conn.close()
+
+                html = """
+                <html>
+                  <head>
+                    <title>Users List</title>
+                    <style>
+                      body { font-family: Arial; text-align: center; margin-top: 60px; background: #f4f8fb; }
+                      table { margin: auto; border-collapse: collapse; width: 60%; background: white; }
+                      th, td { border: 1px solid #ddd; padding: 12px; }
+                      th { background: #0b3d91; color: white; }
+                      a { display:inline-block; margin-top:20px; text-decoration:none; color:#0b3d91; font-weight:bold; }
+                    </style>
+                  </head>
+                  <body>
+                    <h1>Users List</h1>
+                    <table>
+                      <tr><th>Name</th><th>Email</th></tr>
+                """
+
+                for row in rows:
+                    html += f"<tr><td>{row[0]}</td><td>{row[1]}</td></tr>"
+
+                html += """
+                    </table>
+                    <a href="/">Go Back</a>
+                  </body>
+                </html>
+                """
+
+                self.send_response(200)
+                self.send_header("Content-type", "text/html")
+                self.end_headers()
+                self.wfile.write(html.encode())
+
+            except Exception as e:
+                self.send_response(500)
+                self.send_header("Content-type", "text/html")
+                self.end_headers()
+                self.wfile.write(f"""
+                <html>
+                  <body style="font-family:Arial; text-align:center; margin-top:100px;">
+                    <h2>Database Error</h2>
+                    <p>{str(e)}</p>
+                    <a href="/">Go Back</a>
+                  </body>
+                </html>
+                """.encode())
+
+        elif parsed.path == "/health":
             self.send_response(200)
             self.send_header("Content-type", "text/plain")
             self.end_headers()
             self.wfile.write(b"OK")
-        elif self.path == "/info":
+
+        elif parsed.path == "/info":
             self.send_response(200)
             self.send_header("Content-type", "text/plain")
             self.end_headers()
-            self.wfile.write(b"Simple Python HTTP server running on EC2")
+            self.wfile.write(b"Simple Python HTTP server running on EC2 with RDS")
+
         else:
             self.send_response(404)
             self.end_headers()
 
+init_db()
 HTTPServer(("0.0.0.0", ${var.app_port}), Handler).serve_forever()
 PY
 
@@ -405,12 +572,7 @@ systemctl daemon-reload
 systemctl enable myapp
 systemctl start myapp
 EOF
-
-  tags = {
-    Name = "app-${var.environment}"
-  }
 }
-
 resource "aws_lb_target_group_attachment" "app_attach" {
   target_group_arn = aws_lb_target_group.app_tg.arn
   target_id        = aws_instance.app.id
