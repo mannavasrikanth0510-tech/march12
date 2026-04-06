@@ -49,8 +49,3 @@ resource "aws_db_instance" "app_db" {
   #tfsec:ignore:aws-rds-enable-performance-insights
   performance_insights_enabled = false
 }
-
-  
-
-
-
