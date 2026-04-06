@@ -32,7 +32,7 @@ resource "aws_db_subnet_group" "main" {
 resource "aws_db_instance" "app_db" {
   identifier                          = "app-db-${var.environment}"
   engine                              = "mysql"
-  instance_class                      = "db.t3.small"
+  instance_class                      = "db.t3.medium"
   allocated_storage                   = 20
   db_name                             = "appdb"
   username                            = "admin"
@@ -46,6 +46,6 @@ resource "aws_db_instance" "app_db" {
   db_subnet_group_name                = aws_db_subnet_group.main.name
   vpc_security_group_ids              = [aws_security_group.db_sg.id]
   multi_az                            = false
-  performance_insights_enabled        = true
-  performance_insights_kms_key_id     = "arn:aws:kms:us-east-1:740991959346:key/b89956ca-a4c8-4811-85d7-18360ab275b4" # or your actual KMS key ARN
+  performance_insights_enabled        = false
+  #performance_insights_kms_key_id     = "arn:aws:kms:us-east-1:740991959346:key/b89956ca-a4c8-4811-85d7-18360ab275b4" # or your actual KMS key ARN
 }
