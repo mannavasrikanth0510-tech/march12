@@ -1,6 +1,7 @@
 resource "aws_security_group" "db_sg" {
   name   = "db-sg-${var.environment}"
   vpc_id = aws_vpc.main.id
+  description = "RDS DB security group for ${var.environment}"
 
   ingress {
     description     = "Allow MySQL from app EC2"
@@ -8,13 +9,6 @@ resource "aws_security_group" "db_sg" {
     to_port         = 3306
     protocol        = "tcp"
     security_groups = [aws_security_group.app_sg.id]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
   }
 }
 
@@ -37,6 +31,10 @@ resource "aws_db_instance" "app_db" {
   password               = "Password123!"
   publicly_accessible    = false
   skip_final_snapshot    = true
+  storage_encrypted      = true
+  backup_retention_period = 7
+  iam_database_authentication_enabled = true
+  deletion_protection    = true
   db_subnet_group_name   = aws_db_subnet_group.main.name
   vpc_security_group_ids = [aws_security_group.db_sg.id]
   multi_az               = false
