@@ -572,7 +572,7 @@ systemctl daemon-reload
 systemctl enable myapp
 systemctl start myapp
 EOF
-
+}
 resource "aws_lb_target_group_attachment" "app_attach" {
   target_group_arn = aws_lb_target_group.app_tg.arn
   target_id        = aws_instance.app.id
