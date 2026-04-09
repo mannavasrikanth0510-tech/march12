@@ -545,7 +545,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 
-init_db()
+#init_db()
 HTTPServer(("0.0.0.0", ${var.app_port}), Handler).serve_forever()
 PY
 
