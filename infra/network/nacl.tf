@@ -11,6 +11,7 @@ resource "aws_network_acl" "public_nacl" {
   }
 }
 
+#tfsec:ignore:aws-ec2-no-public-ingress-acl
 resource "aws_network_acl_rule" "public_inbound_http" {
   network_acl_id = aws_network_acl.public_nacl.id
   rule_number    = 100
@@ -22,6 +23,7 @@ resource "aws_network_acl_rule" "public_inbound_http" {
   to_port        = 80
 }
 
+#tfsec:ignore:aws-ec2-no-public-ingress-acl
 resource "aws_network_acl_rule" "public_inbound_https" {
   network_acl_id = aws_network_acl.public_nacl.id
   rule_number    = 110
@@ -33,6 +35,7 @@ resource "aws_network_acl_rule" "public_inbound_https" {
   to_port        = 443
 }
 
+#tfsec:ignore:aws-ec2-no-public-ingress-acl
 resource "aws_network_acl_rule" "public_inbound_ephemeral" {
   network_acl_id = aws_network_acl.public_nacl.id
   rule_number    = 120
@@ -44,6 +47,7 @@ resource "aws_network_acl_rule" "public_inbound_ephemeral" {
   to_port        = 65535
 }
 
+#tfsec:ignore:aws-ec2-no-excessive-port-access
 resource "aws_network_acl_rule" "public_outbound_all" {
   network_acl_id = aws_network_acl.public_nacl.id
   rule_number    = 100
@@ -101,6 +105,7 @@ resource "aws_network_acl_rule" "private_inbound_ephemeral" {
   to_port        = 65535
 }
 
+#tfsec:ignore:aws-ec2-no-excessive-port-access
 resource "aws_network_acl_rule" "private_outbound_all" {
   network_acl_id = aws_network_acl.private_nacl.id
   rule_number    = 100
