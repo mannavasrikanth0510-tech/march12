@@ -546,7 +546,7 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
 
 #init_db()
-#HTTPServer(("0.0.0.0", ${var.app_port}), Handler).serve_forever()
+HTTPServer(("0.0.0.0", ${var.app_port}), Handler).serve_forever()
 PY
 
 chown ec2-user:ec2-user /home/ec2-user/app.py
